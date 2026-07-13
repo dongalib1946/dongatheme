@@ -52,9 +52,13 @@ jobs:
             ./ .pages/
           mkdir -p .pages/bumin .pages/admin-bumin
           cp .pages/index.html .pages/bumin.html
-          cp .pages/index.html .pages/bumin/index.html
           cp .pages/admin.html .pages/admin-bumin.html
-          cp .pages/admin.html .pages/admin-bumin/index.html
+          cat > .pages/bumin/index.html <<'HTML'
+          <!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=../index.html?campus=bumin"><script>location.replace('../index.html?campus=bumin');</script>
+          HTML
+          cat > .pages/admin-bumin/index.html <<'HTML'
+          <!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=../admin.html?campus=bumin"><script>location.replace('../admin.html?campus=bumin');</script>
+          HTML
           touch .pages/.nojekyll
 
       - name: Configure GitHub Pages
