@@ -13,9 +13,10 @@
 
 - `ALADIN_TTB_KEY`: 알라딘 Open API 키입니다. GitHub Actions가 배포할 때 `data/aladin-books.json`을 생성하는 데 사용합니다.
 - `KIOSK_ADMIN_PIN`: GitHub Pages만 사용할 때는 브라우저에서 안전하게 검증할 서버가 없으므로 런타임에는 사용되지 않습니다. 나중에 Netlify/Vercel/Cloudflare Functions 같은 서버리스 기능을 다시 붙일 경우 같은 이름으로 사용합니다.
-- `GOOGLE_API_KEY`: Google Drive 포스터 목록을 `data/posters.json`으로 생성하는 데 사용합니다. API 키의 HTTP referrer 제한에는 `https://dongalib1946.github.io/*`를 추가하세요.
 
 비밀키는 HTML이나 JS 파일에 직접 넣지 마세요. 공개 저장소와 GitHub Pages에서는 그대로 노출됩니다.
+
+포스터 이미지는 Google Cloud API가 아니라 공유된 Google Drive 폴더 주소를 기준으로 `data/posters.json`을 생성합니다.
 
 ## 2. GitHub Pages 설정
 

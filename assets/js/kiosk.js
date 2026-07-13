@@ -483,9 +483,6 @@ setInterval(()=>{ const idleFor = Date.now() - lastInteract; if (idleFor >= IDLE
 
 
 (function(){
-  const GOOGLE_API_KEY = 'AIzaSyBi45EE-6g8e_5e18ikpKybDOddQ6NeBU8';
-  const DRIVE_FOLDER_ID = '1I0G9cfTIvnmXkxmFcpGpDHusr8ety-5-';
-
   const INTERVAL_MS = 20000;
   const REFRESH_MS = 10 * 60 * 1000;
   const POSTER_PAGE_CAMPUS = (() => {
@@ -520,45 +517,6 @@ setInterval(()=>{ const idleFor = Date.now() - lastInteract; if (idleFor >= IDLE
     im.onerror = () => { if(nextReady && nextReady.index === n) nextReady = null; };
     im.src = url;
   }
-async function fetchDriveImages(){
-    const q = encodeURIComponent(`'${DRIVE_FOLDER_ID}' in parents and mimeType contains 'image/' and trashed = false`);
-    const fields = encodeURIComponent('nextPageToken, files(id,name,mimeType,modifiedTime,webContentLink,thumbnailLink)');
-    const base = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&orderBy=name&pageSize=1000&key=${GOOGLE_API_KEY}`;
-
-    let pageToken = '';
-    let all = [];
-    try{
-      do{
-        const url = base + (pageToken ? `&pageToken=${pageToken}` : '');
-        const res = await fetch(url, { cache: 'no-store' });
-        if(!res.ok) throw new Error('Drive API error: ' + res.status);
-        const data = await res.json();
-        const batch = (data.files || []).map(f => {
-          const version = encodeURIComponent(f.modifiedTime || Date.now());
-          const raw = `https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&key=${GOOGLE_API_KEY}&v=${version}`;
-          const dl  = `https://drive.google.com/uc?export=download&id=${f.id}&v=${version}`;
-          const thumb = f.thumbnailLink ? `${f.thumbnailLink.replace(/=s\d+/, '=s2000')}&v=${version}` : null;
-
-          const candidates = [];
-          if (thumb) candidates.push(thumb);
-          candidates.push(dl, raw);
-
-          return {
-            id: f.id,
-            name: f.name || '포스터',
-            candidates,
-            url: candidates[0],
-            tried: 0
-          };
-        });
-        all = all.concat(batch);
-        pageToken = data.nextPageToken || '';
-      } while(pageToken);
-    }catch(err){
-      console.warn('[Drive]', err);
-    }
-    return all;
-  }
 
   async function fetchStaticPosterImages(){
     const res = await fetch(`data/posters.json?v=${Date.now()}`, { cache: 'no-store' });
@@ -568,26 +526,10 @@ async function fetchDriveImages(){
   }
 
   async function fetchPosterImages(){
-    const preferStatic = location.hostname === 'dongalib1946.github.io';
-
-    if(preferStatic){
-      try{
-        const staticFiles = await fetchStaticPosterImages();
-        if(staticFiles.length) return staticFiles;
-      }catch(err){
-        console.warn('[Drive] static poster data unavailable.', err);
-      }
-    }
-
-    const driveFiles = await fetchDriveImages();
-    if(driveFiles.length) return driveFiles;
-
-    if(!preferStatic){
-      try{
-        return await fetchStaticPosterImages();
-      }catch(err){
-        console.warn('[Drive] static poster data unavailable.', err);
-      }
+    try{
+      return await fetchStaticPosterImages();
+    }catch(err){
+      console.warn('[Drive] static poster data unavailable.', err);
     }
 
     return [];
