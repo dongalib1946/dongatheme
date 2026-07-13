@@ -40,6 +40,8 @@ jobs:
         run: npm run generate:pages-data
         env:
           ALADIN_TTB_KEY: ${{ secrets.ALADIN_TTB_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GOOGLE_API_REFERER: https://dongalib1946.github.io/dongatheme/
 
       - name: Prepare Pages artifact
         run: |

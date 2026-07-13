@@ -560,6 +560,39 @@ async function fetchDriveImages(){
     return all;
   }
 
+  async function fetchStaticPosterImages(){
+    const res = await fetch(`data/posters.json?v=${Date.now()}`, { cache: 'no-store' });
+    if(!res.ok) throw new Error(`Static poster data failed: ${res.status}`);
+    const data = await res.json();
+    return Array.isArray(data.items) ? data.items : [];
+  }
+
+  async function fetchPosterImages(){
+    const preferStatic = location.hostname === 'dongalib1946.github.io';
+
+    if(preferStatic){
+      try{
+        const staticFiles = await fetchStaticPosterImages();
+        if(staticFiles.length) return staticFiles;
+      }catch(err){
+        console.warn('[Drive] static poster data unavailable.', err);
+      }
+    }
+
+    const driveFiles = await fetchDriveImages();
+    if(driveFiles.length) return driveFiles;
+
+    if(!preferStatic){
+      try{
+        return await fetchStaticPosterImages();
+      }catch(err){
+        console.warn('[Drive] static poster data unavailable.', err);
+      }
+    }
+
+    return [];
+  }
+
   function sortDriveImages(list){
     return list.sort((a,b)=> a.name.localeCompare(b.name, 'ko', {numeric:true, sensitivity:'base'}));
   }
@@ -660,7 +693,7 @@ async function fetchDriveImages(){
     if(refreshing) return;
     refreshing = true;
     try{
-      const driveFiles = await fetchDriveImages();
+      const driveFiles = await fetchPosterImages();
       const nextFiles = sortDriveImages(driveFiles.filter(file => isPosterVisible(file)));
       if(!nextFiles.length){
         if(initial){
