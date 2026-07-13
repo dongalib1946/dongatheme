@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>키오스크 원격 제어</title>
+  <link rel="stylesheet" href="assets/css/admin.css?v=20260529-light-themes">
+</head>
+<body>
+  <main>
+    <div class="admin-head">
+      <div>
+        <h1>키오스크 원격 제어</h1>
+      </div>
+      <a class="home-link" href="index.html" aria-label="키오스크 홈으로 돌아가기">홈으로</a>
+    </div>
+    <p>화면 테마와 새로고침 신호를 관리합니다. 키오스크는 최대 30초 안에 변경 내용을 확인합니다.</p>
+
+    <div class="login-row">
+      <label>
+        관리자 PIN
+        <input id="pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="PIN 입력">
+      </label>
+      <button id="loginBtn" class="btn-login" type="button">로그인</button>
+    </div>
+
+    <section class="panel" aria-labelledby="themeTitle">
+      <h2 id="themeTitle">화면 테마</h2>
+      <div class="theme-grid" role="radiogroup" aria-label="화면 테마">
+        <label class="theme-choice navy">
+          <input type="radio" name="theme" value="navy-glass" checked>
+          <span>네이비 글래스</span>
+        </label>
+        <label class="theme-choice aurora">
+          <input type="radio" name="theme" value="aurora">
+          <span>오로라</span>
+        </label>
+        <label class="theme-choice midnight">
+          <input type="radio" name="theme" value="midnight">
+          <span>미드나잇</span>
+        </label>
+        <label class="theme-choice slate">
+          <input type="radio" name="theme" value="slate">
+          <span>슬레이트</span>
+        </label>
+        <label class="theme-choice daylight">
+          <input type="radio" name="theme" value="daylight">
+          <span>데이라이트</span>
+        </label>
+        <label class="theme-choice mint">
+          <input type="radio" name="theme" value="mint">
+          <span>민트</span>
+        </label>
+        <label class="theme-choice coral">
+          <input type="radio" name="theme" value="coral">
+          <span>코랄</span>
+        </label>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button id="saveBtn" class="btn-primary" type="button">설정 저장</button>
+      <button id="reloadBtn" class="btn-danger" type="button">새로고침 신호 보내기</button>
+    </div>
+    <div class="status" id="status">대기 중</div>
+  </main>
+
+  <script src="assets/js/admin.js?v=20260529-campus-scope"></script>
+</body>
+</html>

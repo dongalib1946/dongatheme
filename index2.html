@@ -1,0 +1,2171 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>로비 안내 디스플레이</title>
+  <style>
+    :root{ --bg:#fff8fb; --panel:rgba(255,255,255,.35); --fg:#1f2937; --muted:rgba(31,41,55,.65); --radius:20px; }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:
+    radial-gradient(1100px 700px at 10% 0%, rgba(255,77,141,.22), transparent 60%),
+    radial-gradient(900px 600px at 90% 12%, rgba(20,184,166,.22), transparent 58%),
+    radial-gradient(1200px 820px at 55% 105%, rgba(124,58,237,.18), transparent 60%),
+    linear-gradient(180deg, #fff8fb 0%, #f3fbff 45%, #f7fff6 100%); color:var(--fg);
+      font-family: "Noto Sans KR", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      overflow:hidden; display:flex; flex-direction:column; user-select:none; -webkit-user-select:none;
+      -webkit-touch-callout:none; -webkit-tap-highlight-color: transparent;
+    }
+    img{ -webkit-user-drag:none; user-drag:none; pointer-events:auto; }
+
+    
+    .poster-area{
+      flex:4; position:relative; display:flex; justify-content:center; align-items:center;
+      overflow:hidden; padding:6px;
+      isolation:isolate;
+      background:#AFD485; 
+    }
+    .poster-area::before{
+      content:""; position:absolute; inset:0; z-index:0;
+      background-image: var(--poster-bg);
+      background-size:cover; background-position:center; background-repeat:no-repeat;
+      filter: blur(24px) brightness(0.9) saturate(1.05);
+      transform: scale(1.1);
+      will-change: filter, transform;
+      transition: opacity .35s ease;
+      opacity:.999;
+    }
+    .poster-area::after{
+      content:""; position:absolute; inset:0; z-index:0;
+      background:
+        radial-gradient(120% 85% at 50% 50%, rgba(0,0,0,.18) 0%, rgba(0,0,0,.35) 100%),
+        linear-gradient(to bottom, rgba(0,0,0,.12), rgba(0,0,0,.12));
+      pointer-events:none;
+    }
+    .poster-area img{
+      position:relative; z-index:1;
+      max-width:100%; max-height:100%; object-fit:contain;
+      filter: drop-shadow(0 6px 18px rgba(0,0,0,.35));
+    }
+
+    
+    .books-area{ flex:3; position:relative; display:flex; align-items:stretch; justify-content:center; background:var(--panel); padding:6px 16px; }
+    .carousel{ display:flex; overflow:hidden; width:100%; height:100%; align-items:stretch; }
+    .carousel-track{ display:flex; gap:8px; will-change:transform; }
+    .book{ flex:0 0 24%; height:100%; display:flex; justify-content:center; align-items:center; padding:0; }
+    .book img{ width:100%; height:auto; max-height:100%; aspect-ratio:10/13; object-fit:contain; border-radius:6px; box-shadow:0 4px 10px rgba(0,0,0,.4); background: rgba(255,255,255,.28); }
+
+    .arrow{ position:absolute; top:50%; transform:translateY(-50%); background:rgba(255,255,255,.28); border:none; color:#111827; font-size:1.5rem; padding:8px; cursor:pointer; border-radius:50%; z-index:5; }
+    .arrow.left{ left:8px } .arrow.right{ right:8px }
+
+  
+
+    
+    .modal{ position:fixed; inset:0; display:none; place-items:center; background:rgba(255,255,255,.22); z-index:20; }
+    .modal[aria-hidden="false"]{ display:grid; }
+    .modal-card{ width:min(94vw, 760px); border-radius:16px; background: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.35)); border:1px solid rgba(255,255,255,.12); box-shadow:0 20px 60px rgba(0,0,0,.5); padding:22px 22px 12px; display:grid; gap:12px; }
+    .modal-header{ display:flex; align-items:center; gap:14px; }
+    .modal-cover{ width:140px; height:210px; border:1px solid rgba(255,255,255,.18); border-radius:10px; overflow:hidden; flex-shrink:0; background: rgba(255,255,255,.35); }
+    .modal-cover img{ width:100%; height:100%; object-fit:cover; }
+    .modal-title{ font-size:22px; font-weight:800; }
+    .modal-author{ color:var(--muted); font-size:15px; }
+    .modal-body{ font-size:16px; line-height:1.6; color:#d9e1ee; white-space:pre-wrap; }
+    .modal-meta{ font-size:15px; color:#bcd; background:rgba(59,130,246,.12); padding:8px 10px; border-radius:10px; border:1px solid rgba(59,130,246,.25); }
+    .modal-footer{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:6px; }
+    .btn-close{ background:#1f2a44; color:#e7eef7; border:1px solid rgba(255,255,255,.18); border-radius:10px; padding:8px 12px; cursor:pointer; font-weight:700; }
+    .countdown{ color:#b7c4da; font-variant-numeric: tabular-nums; }
+
+
+    
+    #hoursModal .modal-card.hours-card{
+      position:relative;
+      overflow:hidden;
+      padding:22px 22px 14px;
+      border-radius:22px;
+      background: linear-gradient(180deg, rgba(255,255,255,.78), rgba(255,255,255,.50));
+      border:1px solid rgba(255,255,255,.55);
+      backdrop-filter: blur(18px) saturate(1.25);
+      -webkit-backdrop-filter: blur(18px) saturate(1.25);
+      box-shadow: 0 22px 70px rgba(0,0,0,.45);
+      color:#111827;
+    }
+    #hoursModal .modal-card.hours-card::before{
+      content:"";
+      position:absolute; inset:-40%;
+      background:
+        radial-gradient(40% 34% at 20% 20%, rgba(255,77,141,.38), transparent 55%),
+        radial-gradient(38% 32% at 80% 28%, rgba(20,184,166,.34), transparent 58%),
+        radial-gradient(46% 40% at 55% 85%, rgba(124,58,237,.28), transparent 62%);
+      filter: blur(24px);
+      opacity:.95;
+      pointer-events:none;
+      transform: rotate(6deg);
+    }
+    #hoursModal .modal-card.hours-card::after{
+      content:"";
+      position:absolute; inset:0;
+      background: linear-gradient(180deg, rgba(255,255,255,.20), rgba(255,255,255,0));
+      pointer-events:none;
+      mix-blend-mode: soft-light;
+    }
+    #hoursModal .hours-head{
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+    }
+    #hoursModal .hours-title-wrap{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width:0;
+    }
+    #hoursModal .hours-icon{
+      width:44px; height:44px;
+      border-radius:14px;
+      display:grid;
+      place-items:center;
+      background: rgba(0,0,0,.08);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.6);
+      font-size:22px;
+      flex:0 0 auto;
+    }
+    #hoursModal .hours-title{
+      font-size:22px;
+      font-weight:900;
+      letter-spacing:-.02em;
+      line-height:1.1;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    #hoursModal .hours-sub{
+      font-size:13px;
+      font-weight:700;
+      color: rgba(17,24,39,.70);
+      margin-top:2px;
+    }
+    #hoursModal .hours-grid{
+      position:relative;
+      margin-top:14px;
+      display:grid;
+      gap:10px;
+    }
+    #hoursModal .hours-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:12px 14px;
+      border-radius:16px;
+      background: rgba(255,255,255,.62);
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 10px 18px rgba(0,0,0,.10);
+    }
+    #hoursModal .hours-label{
+      font-weight:900;
+      letter-spacing:-.01em;
+      color:#0f172a;
+      flex:1 1 auto;
+      min-width:0;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    #hoursModal .hours-time{
+      flex:0 0 auto;
+      font-weight:900;
+      font-variant-numeric: tabular-nums;
+      padding:8px 10px;
+      border-radius:999px;
+      background: linear-gradient(120deg, rgba(255,77,141,.18), rgba(20,184,166,.16), rgba(124,58,237,.14));
+      border:1px solid rgba(255,255,255,.75);
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.05);
+      color:#0b1220;
+      text-align:right;
+    }
+    #hoursModal .hours-badge{
+      flex:0 0 auto;
+      font-size:12px;
+      font-weight:900;
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(17,24,39,.08);
+      border:1px solid rgba(255,255,255,.65);
+      color:#111827;
+      white-space:nowrap;
+    }
+    #hoursModal .hours-note{
+      position:relative;
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius:14px;
+      background: rgba(255,255,255,.55);
+      border:1px dashed rgba(17,24,39,.18);
+      color: rgba(17,24,39,.78);
+      font-size:13px;
+      line-height:1.45;
+    }
+    #hoursModal .modal-footer{
+      position:relative;
+      margin-top:6px;
+    }
+    #hoursModal .btn-close{
+      background: rgba(17,24,39,.86);
+      color:#ffffff;
+      border:1px solid rgba(255,255,255,.25);
+      border-radius:12px;
+      padding:10px 14px;
+      cursor:pointer;
+      font-weight:900;
+    }
+    #hoursModal .countdown{
+      color: rgba(17,24,39,.70);
+      font-weight:800;
+    }
+    @media (max-width: 640px){
+      #hoursModal .hours-row{ flex-direction:column; align-items:flex-start; }
+      #hoursModal .hours-time{ width:100%; text-align:left; }
+    }
+
+
+
+#hoursModal .modal-footer,
+#bookModal  .modal-footer{
+  display: grid !important;
+  grid-template-columns: 1fr auto 1fr;  
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+
+#hoursModal .btn-close,
+#bookModal  .btn-close{
+  grid-column: 2;
+  justify-self: center;
+  min-width: 120px;
+}
+
+
+#hoursModal .countdown,
+#bookModal  .countdown{
+  grid-column: 3;
+  justify-self: end;
+}
+
+
+@media (max-width: 640px){
+  #hoursModal .modal-footer,
+  #bookModal  .modal-footer{
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+  #hoursModal .btn-close,
+  #bookModal  .btn-close,
+  #hoursModal .countdown,
+  #bookModal  .countdown{
+    grid-column: 1;
+    justify-self: center;
+  }
+}
+
+
+#hoursModal .btn-close{
+  background: rgba(255,255,255,.62);
+  color:#0f172a;
+  border: 1px solid rgba(15,23,42,.14);
+  box-shadow: 0 10px 24px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.55);
+}
+#hoursModal .btn-close:hover{
+  background: rgba(255,255,255,.78);
+}
+
+    
+   
+.notice-bar{
+  height: 80px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap: 14px;
+  padding: 10px 18px;
+  background: transparent;
+  border: none;
+}
+
+
+.notice-hours-btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.notice-pill{
+  display:flex;
+  align-items:center;
+  gap: 14px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  background: linear-gradient(120deg, rgba(255,77,141,.35), rgba(20,184,166,.28), rgba(124,58,237,.22));
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.3),
+    0 10px 24px rgba(0,0,0,.35);
+  color:#111827;
+  position:relative;
+  overflow:hidden;
+  animation: pill-glow 2.2s ease-out infinite;
+}
+
+.notice-pill::before{
+  content:"";
+  position:absolute;
+  inset:-50%;
+  background: linear-gradient(120deg,rgba(255,255,255,.7),transparent 55%);
+  transform:translateX(-80%);
+  opacity:.0;
+  pointer-events:none;
+  animation: pill-shine 4s linear infinite;
+}
+
+.notice-icon{
+  width:40px; height:40px;
+  border-radius:50%;
+  background:rgba(0,0,0,.15);
+  display:grid;
+  place-items:center;
+  font-size:22px;
+}
+
+.notice-text{
+  display:flex;
+  flex-direction:column;
+  line-height:1.2;
+}
+
+.notice-kicker{
+  font-size:0.8rem;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  opacity:.9;
+}
+
+.notice-label{
+  font-size:1.15rem;
+  font-weight:900;
+  letter-spacing:.01em;
+}
+
+.notice-arrow{
+  margin-left:16px;
+  padding:6px 10px;
+  border-radius:999px;
+  background:rgba(0,0,0,.18);
+  color:#111827;
+  font-size:0.9rem;
+  font-weight:800;
+}
+
+.notice-hours-btn:focus-visible .notice-pill{
+  outline:2px solid rgba(37,99,235,.9);
+  outline-offset:3px;
+}
+
+
+@keyframes pill-glow{
+  0%,100%{ box-shadow:0 0 0 0 rgba(255,255,255,.0), 0 10px 24px rgba(0,0,0,.35); }
+  50%   { box-shadow:0 0 0 10px rgba(255,255,255,.18), 0 12px 28px rgba(0,0,0,.4); }
+}
+@keyframes pill-shine{
+  0%   { transform:translateX(-80%); opacity:0; }
+  25%  { opacity:.9; }
+  50%  { transform:translateX(80%); opacity:0; }
+  100% { transform:translateX(80%); opacity:0; }
+}
+
+
+@media (max-width: 640px){
+  .notice-bar{ height:auto; padding:8px 12px; gap:10px; flex-wrap:wrap; }
+  .notice-pill{ padding:10px 16px; gap:10px; }
+  .notice-label{ font-size:1.02rem; }
+  .notice-arrow{ display:none; } 
+}
+
+    
+    @media (min-width: 1280px){
+      .book{ flex-basis: 26%; }
+      .book img{ max-height:94%; }
+      .modal-card{ width:min(92vw, 860px); }
+      .modal-cover{ width:160px; height:240px; }
+    }
+    
+    @media (max-width: 640px){
+      .poster-area{ flex:3; }
+      .books-area{ flex:4; padding:6px 12px; }
+      .book{ flex-basis: 40%; }
+    }
+
+    
+    .gesture-hint{
+      position:absolute; left:50%; top:12px; transform:translateX(-50%);
+      display:flex; align-items:center; gap:10px; padding:8px 14px; border-radius:999px;
+      background:rgba(255,255,255,.22); backdrop-filter: blur(6px); color:#111827; font-weight:800; letter-spacing:.02em; z-index:6;
+      border:1px solid rgba(255,255,255,.18); animation: hint-pop .28s ease-out;
+    }
+    .gesture-hint[aria-hidden="true"]{ display:none; }
+    .gesture-hint .hint-text{ font-size:14px; opacity:.95; }
+    .gesture-hint .chev{ font-size:20px; opacity:.9; }
+    .gesture-hint .chev-left{ animation: chev-left 1.2s ease-in-out infinite; }
+    .gesture-hint .chev-right{ animation: chev-right 1.2s ease-in-out infinite; }
+    @keyframes chev-left{ 0%,100%{ transform:translateX(0) } 50%{ transform:translateX(-6px) } }
+    @keyframes chev-right{ 0%,100%{ transform:translateX(0) } 50%{ transform:translateX(6px) } }
+    @keyframes hint-pop{ from{ transform:translateX(-50%) scale(.96); opacity:0 } to{ transform:translateX(-50%) scale(1); opacity:1 } }
+
+    
+    .poster-area{ flex:4 !important; }
+    .books-area{ flex:3 !important; }
+    .books-area img{ height:auto !important; }
+
+    
+    .poster-arrow{
+      position:absolute; top:50%; transform:translateY(-50%);
+      width:44px; height:44px; display:grid; place-items:center;
+      background:rgba(255,255,255,.22); color:#111827; border:1px solid rgba(255,255,255,.3);
+      border-radius:50%; cursor:pointer; z-index:2; backdrop-filter: blur(4px);
+      font-size:26px; line-height:1; user-select:none;
+    }
+    .poster-arrow.p-left{ left:10px; }
+    .poster-arrow.p-right{ right:10px; }
+    .poster-arrow:focus-visible{ outline:2px solid rgba(255,255,255,.8); outline-offset:2px; }
+
+    
+    .poster-area img{
+      transition: transform .28s cubic-bezier(.22,.61,.36,1);
+      will-change: transform;
+    }
+    .poster-area img.dragging{
+      transition: none; 
+    }
+
+    
+    .rec-hours {
+      font-size: 1rem;
+      font-weight: 900;
+      color: #000000;
+      background: #f8e65d;
+      border: 1px solid #fcd964;
+      padding: 6px 12px;
+      border-radius: 8px;
+      margin-top: 8px;
+      display: inline-block; 
+    }
+
+    
+.modal{
+  background:
+    radial-gradient(120% 90% at 15% 10%, rgba(255,77,141,.22) 0%, transparent 55%),
+    radial-gradient(110% 80% at 90% 15%, rgba(20,184,166,.20) 0%, transparent 55%),
+    radial-gradient(120% 90% at 60% 105%, rgba(124,58,237,.18) 0%, transparent 58%),
+    rgba(17,24,39,.35);
+  backdrop-filter: blur(12px) saturate(1.25);
+  -webkit-backdrop-filter: blur(12px) saturate(1.25);
+  animation: modal-fade .22s ease-out;
+}
+@keyframes modal-fade{ from{ opacity:0 } to{ opacity:1 } }
+
+.modal-card{
+  position: relative;
+  background: linear-gradient(180deg, rgba(255,255,255,.82), rgba(255,255,255,.56));
+  backdrop-filter: blur(18px) saturate(1.35);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+  border: 1px solid rgba(255,255,255,.45);
+  box-shadow:
+    0 26px 70px rgba(0,0,0,.38),
+    inset 0 1px 0 rgba(255,255,255,.55);
+  transform-origin: 50% 46%;
+  animation: modal-pop .24s cubic-bezier(.22,.61,.36,1);
+}
+
+.modal-card::before{
+  content:"";
+  position:absolute; inset:-1px;
+  border-radius:16px;
+  background:
+    radial-gradient(120% 90% at 15% 8%, rgba(255,77,141,.22), transparent 55%),
+    radial-gradient(110% 80% at 92% 12%, rgba(20,184,166,.18), transparent 55%),
+    radial-gradient(120% 90% at 60% 110%, rgba(124,58,237,.16), transparent 60%);
+  pointer-events:none;
+  filter: blur(10px);
+  opacity:.9;
+  z-index:-1;
+}
+@keyframes modal-pop{
+  from{ transform: translateY(6px) scale(.985); opacity: .0 }
+  to  { transform: translateY(0)   scale(1);    opacity: 1  }
+}
+
+.modal-title{
+  letter-spacing:.01em;
+  color:#0f172a;
+  text-shadow: 0 1px 0 rgba(255,255,255,.55);
+}
+.modal-author{ color: rgba(15,23,42,.70); }
+
+.modal-cover{
+  border: 1px solid rgba(15,23,42,.10);
+  background: rgba(255,255,255,.55);
+  box-shadow: 0 10px 26px rgba(0,0,0,.18);
+}
+
+
+.modal-body{
+  color:#0f172a;
+  font-size: 17px;
+  line-height: 1.75;
+  letter-spacing: .01em;
+  background: rgba(255,255,255,.60);
+  border: 1px solid rgba(15,23,42,.10);
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
+  white-space: pre-wrap;
+}
+.modal-meta{
+  font-size: 15px;
+  color:#0f172a;
+  background: linear-gradient(180deg, rgba(59,130,246,.16), rgba(59,130,246,.10));
+  border: 1px solid rgba(59,130,246,.22);
+}
+
+.btn-close{
+  background: rgba(255,255,255,.62);
+  color:#0f172a;
+  border: 1px solid rgba(15,23,42,.14);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-weight: 900;
+  letter-spacing:.01em;
+  box-shadow: 0 10px 24px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.55);
+  transition: transform .12s ease, box-shadow .2s ease, background .2s ease;
+  outline: none;
+  cursor: pointer;
+}
+.btn-close:hover{
+  background: rgba(255,255,255,.78);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.65);
+}
+.btn-close:active{ transform: translateY(0); }
+
+.btn-close:focus-visible{
+  outline: 2px solid rgba(37,99,235,.85);
+  outline-offset: 2px;
+}
+
+.countdown{
+  color: rgba(15,23,42,.78);
+  background: rgba(255,255,255,.45);
+  border: 1px solid rgba(15,23,42,.10);
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce){
+  .modal, .modal-card, .btn-close{ animation: none !important; transition: none !important; }
+}
+
+    
+    button[class^="btn-"] {
+      border-radius: 12px;
+      font-weight: 700;
+      letter-spacing: .01em;
+      padding: 10px 16px;
+      border: 1px solid transparent;
+      backdrop-filter: blur(8px) saturate(1.1);
+      -webkit-backdrop-filter: blur(8px) saturate(1.1);
+      transition: all .2s ease;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: linear-gradient(180deg, rgba(75,136,255,.9), rgba(45,100,210,.9));
+      border-color: rgba(255,255,255,.18);
+      color: #f8faff;
+      box-shadow: 0 8px 20px rgba(0,64,255,.35), inset 0 1px 0 rgba(255,255,255,.1);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(180deg, rgba(85,150,255,1), rgba(52,112,220,1));
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px rgba(0,64,255,.45);
+    }
+    .btn-primary:active {
+      transform: translateY(0);
+      box-shadow: 0 6px 16px rgba(0,64,255,.35);
+    }
+    .btn-primary:focus-visible {
+      outline: 2px solid rgba(115,165,255,.9);
+      outline-offset: 2px;
+    }
+    .btn-secondary {
+      background: linear-gradient(180deg, rgba(32,42,64,.8), rgba(22,30,50,.8));
+      border-color: rgba(255,255,255,.15);
+      color: #e3e9f5;
+      box-shadow: 0 6px 16px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
+    }
+    .btn-secondary:hover {
+      background: linear-gradient(180deg, rgba(42,54,80,.9), rgba(26,36,60,.9));
+      transform: translateY(-1px);
+    }
+    .btn-secondary:active {
+      transform: translateY(0);
+    }
+    .btn-secondary:focus-visible {
+      outline: 2px solid rgba(120,150,200,.8);
+      outline-offset: 2px;
+    }
+    .btn-ghost {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.25);
+      color: #d9e3f5;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
+    }
+    .btn-ghost:hover {
+      background: rgba(255,255,255,.12);
+      color: #ffffff;
+    }
+    .btn-ghost:active {
+      background: rgba(255,255,255,.1);
+    }
+    .btn-ghost:focus-visible {
+      outline: 2px solid rgba(160,190,255,.7);
+      outline-offset: 2px;
+    }
+    .btn-danger {
+      background: linear-gradient(180deg, rgba(230,70,70,.9), rgba(190,45,45,.9));
+      border-color: rgba(255,255,255,.18);
+      color: #fff;
+      box-shadow: 0 8px 20px rgba(230,60,60,.35);
+    }
+    .btn-danger:hover {
+      background: linear-gradient(180deg, rgba(240,80,80,1), rgba(200,50,50,1));
+      transform: translateY(-1px);
+    }
+    .btn-danger:active {
+      transform: translateY(0);
+      box-shadow: 0 6px 16px rgba(230,60,60,.35);
+    }
+    .btn-danger:focus-visible {
+      outline: 2px solid rgba(255,130,130,.8);
+      outline-offset: 2px;
+    }
+
+    
+    .modal.card-modal{
+      background: rgba(0,0,0,.9);
+      z-index: 30;
+    }
+    .card-modal-inner{
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+      box-sizing: border-box;
+    }
+    #cardImg{
+      max-width: calc(100vw - 80px);
+      max-height: calc(100vh - 80px);
+      object-fit: contain;
+      border-radius: 18px;
+      box-shadow: 0 18px 50px rgba(0,0,0,.6);
+      transition: transform .25s ease;
+    }
+    .card-nav{
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 52px;
+      height: 52px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.45);
+      background: rgba(15,23,42,.9);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 28px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.6);
+      cursor: pointer;
+    }
+    .card-prev{ left: 18px; }
+    .card-next{ right: 18px; }
+    .card-nav:hover{
+      background: rgba(30,64,175,.95);
+    }
+    .card-close{
+      position: absolute;
+      top: 18px;
+      right: 22px;
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.4);
+      background: rgba(15,23,42,.9);
+      color:#111827;
+      font-size:22px;
+      display:grid;
+      place-items:center;
+      cursor:pointer;
+    }
+    .card-countdown{
+      position: absolute;
+      right: 24px;
+      bottom: 20px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(15,23,42,.8);
+      color: #d4def8;
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+    }
+    .card-nav:focus-visible,
+    .card-close:focus-visible{
+      outline: 2px solid rgba(129,140,248,.9);
+      outline-offset: 2px;
+    }
+    @media (max-width: 640px){
+      .card-modal-inner{
+        padding: 16px;
+      }
+      #cardImg{
+        max-width: calc(100vw - 40px);
+        max-height: calc(100vh - 40px);
+      }
+    }
+    
+.card-image-wrap{
+  position: relative;
+  display: inline-block;
+}
+
+
+#cardImg{
+  max-width: calc(100vw - 80px);
+  max-height: calc(100vh - 80px);
+  object-fit: contain;
+  border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.6);
+  transition: transform .25s ease;
+}
+
+
+.card-close{
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.4);
+  background: rgba(15,23,42,.9);
+  color:#111827;
+  font-size:20px;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+}
+
+  
+
+    
+
+    
+    .notice-pill.notice-pill-hours{
+      backdrop-filter: blur(14px) saturate(1.25);
+      -webkit-backdrop-filter: blur(14px) saturate(1.25);
+      box-shadow:
+        0 12px 28px rgba(0,0,0,.35),
+        inset 0 1px 0 rgba(255,255,255,.55);
+    }
+
+    
+    #hoursModal .modal-card.hours-card{
+      border: 0 !important;
+      box-shadow:
+        0 24px 80px rgba(0,0,0,.44),
+        inset 0 1px 0 rgba(255,255,255,.55);
+    }
+    #hoursModal .hours-row{
+      border: 0 !important;
+      background: rgba(255,255,255,.58) !important;
+      backdrop-filter: blur(12px) saturate(1.25);
+      -webkit-backdrop-filter: blur(12px) saturate(1.25);
+      box-shadow: 0 12px 22px rgba(0,0,0,.10);
+    }
+    #hoursModal .hours-time{
+      border: 0 !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.75);
+    }
+    #hoursModal .hours-note{
+      border: 0 !important;
+      background: rgba(255,255,255,.52) !important;
+      backdrop-filter: blur(10px) saturate(1.2);
+      -webkit-backdrop-filter: blur(10px) saturate(1.2);
+    }
+
+    
+    .book img{
+      background: transparent !important;
+    }
+
+    
+    .modal-cover{
+      border: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      overflow: visible !important;
+    }
+    .modal-cover img{
+      border-radius: 10px;
+      filter: drop-shadow(0 12px 28px rgba(0,0,0,.26));
+    }
+
+    
+
+    .weather-widget{
+      position:relative;
+      z-index: 1;
+      width: min(340px, calc(100vw - 24px));
+      padding: 10px 14px 10px;
+      border-radius: 18px;
+      color: rgba(255,255,255,.96);
+      pointer-events: none; 
+      background:
+        radial-gradient(120% 90% at 10% 10%, rgba(255,77,141,.28), transparent 58%),
+        radial-gradient(120% 90% at 92% 18%, rgba(20,184,166,.26), transparent 58%),
+        radial-gradient(120% 90% at 58% 110%, rgba(124,58,237,.22), transparent 62%),
+        rgba(15,23,42,.28);
+      border: 1px solid rgba(255,255,255,.16);
+      box-shadow: 0 14px 36px rgba(0,0,0,.34);
+      backdrop-filter: blur(14px) saturate(1.25);
+      -webkit-backdrop-filter: blur(14px) saturate(1.25);
+    }
+
+    .weather-top{
+      display:flex;
+      justify-content:space-between;
+      align-items:baseline;
+      gap:10px;
+      margin-bottom: 4px;
+    }
+    .weather-loc{
+      font-weight: 900;
+      letter-spacing: -.01em;
+      font-size: 14px;
+      opacity: .95;
+    }
+    .weather-updated{
+      font-size: 12px;
+      opacity: .78;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .weather-main{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .weather-temp{
+      font-size: 30px;
+      font-weight: 950;
+      letter-spacing: -.03em;
+      line-height: 1;
+      text-shadow: 0 10px 26px rgba(0,0,0,.35);
+      white-space: nowrap;
+    }
+    .weather-unit{
+      font-size: 16px;
+      font-weight: 900;
+      opacity:.9;
+      margin-left: 4px;
+    }
+    .weather-desc{
+      font-size: 14px;
+      font-weight: 800;
+      opacity: .95;
+      text-align: right;
+      max-width: 190px;
+    }
+    .weather-sub{
+      margin-top: 6px;
+      display:flex;
+      align-items:center;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 12px;
+      opacity: .92;
+    }
+    .weather-item b{
+      font-weight: 950;
+    }
+    .weather-dot{
+      opacity:.55;
+    }
+
+    @media (max-width: 640px){
+      .weather-widget{ border-radius: 16px; }
+      .weather-temp{ font-size: 30px; }
+    }
+
+  
+
+
+
+
+:root{
+  --dock-h: clamp(110px, 9.5vh, 170px);
+  --books-h: clamp(260px, 34vw, 520px);
+}
+
+
+.poster-area{
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  padding: 8px !important;
+}
+.notice-bar{
+  height: auto !important;
+  min-height: var(--dock-h) !important;
+  padding: 10px 16px !important;
+  gap: 0 !important;
+}
+.books-area{
+  flex: 0 0 var(--books-h) !important;
+  min-height: 0 !important;
+  padding: 8px 14px !important;
+}
+
+
+.info-dock{
+  width: min(1180px, calc(100vw - 28px));
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: clamp(12px, 1.8vw, 18px);
+  padding: clamp(14px, 1.6vh, 20px) clamp(18px, 2.2vw, 28px);
+  border-radius: 999px;
+
+  
+  background:
+    radial-gradient(120% 90% at 12% 10%, rgba(255,77,141,.40), transparent 58%),
+    radial-gradient(120% 90% at 92% 18%, rgba(20,184,166,.30), transparent 58%),
+    radial-gradient(120% 90% at 58% 110%, rgba(124,58,237,.26), transparent 62%),
+    rgba(255,255,255,.26);
+
+  border: 1px solid rgba(255,255,255,.40);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.26),
+    0 16px 36px rgba(0,0,0,.32),
+    inset 0 1px 0 rgba(255,255,255,.55);
+
+  backdrop-filter: blur(16px) saturate(1.25);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+
+  cursor:pointer;
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+.info-dock:active{ transform: translateY(1px); }
+
+.info-dock:focus-visible{
+  outline: 3px solid rgba(37,99,235,.90);
+  outline-offset: 4px;
+}
+
+.dock-left{
+  display:flex;
+  align-items:center;
+  gap: 14px;
+  min-width: 0;
+}
+.dock-icon{
+  width: clamp(46px, 5.2vh, 62px);
+  height: clamp(46px, 5.2vh, 62px);
+  border-radius: 18px;
+  display:grid;
+  place-items:center;
+  background: rgba(0,0,0,.14);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
+  font-size: clamp(22px, 2.7vh, 30px);
+  flex: 0 0 auto;
+}
+.dock-text{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+}
+.dock-title{
+  font-size: clamp(20px, 2.6vh, 32px);
+  font-weight: 950;
+  letter-spacing: -.02em;
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dock-sub{
+  font-size: clamp(12px, 1.6vh, 17px);
+  font-weight: 850;
+  opacity: .82;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dock-divider{
+  width: 1px;
+  align-self: stretch;
+  background: rgba(0,0,0,.22);
+  opacity: .35;
+}
+
+.dock-weather{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+.dock-weather-top{
+  display:flex;
+  gap: 10px;
+  align-items:baseline;
+  justify-content:flex-end;
+  width:100%;
+}
+.dock-loc{
+  font-weight: 950;
+  font-size: clamp(13px, 1.7vh, 18px);
+  opacity: .90;
+}
+.dock-updated{
+  font-size: clamp(11px, 1.4vh, 15px);
+  opacity: .78;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.dock-weather-main{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items:baseline;
+  justify-content:flex-end;
+  width:100%;
+}
+.dock-temp{
+  font-size: clamp(28px, 3.4vh, 46px);
+  font-weight: 980;
+  letter-spacing: -.03em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.dock-temp-unit{
+  font-size: clamp(14px, 1.8vh, 18px);
+  font-weight: 950;
+  opacity: .90;
+  margin-left: 4px;
+}
+.dock-desc{
+  font-size: clamp(14px, 2.0vh, 22px);
+  font-weight: 900;
+  opacity: .92;
+  max-width: min(520px, 48vw);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dock-weather-sub{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content:flex-end;
+  font-size: clamp(11px, 1.45vh, 15px);
+  font-weight: 850;
+  opacity: .85;
+}
+.dock-weather-sub b{ font-weight: 950; }
+.dock-weather-sub .dot{ opacity: .55; }
+
+
+
+.aq-item{ display:inline-flex; align-items:baseline; gap:10px; }
+
+.aq-pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 950;
+  font-size: clamp(10px, 1.2vh, 13px);
+  letter-spacing: -.01em;
+  line-height: 1;
+  border: 1px solid rgba(255,255,255,.70);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.06), 0 8px 16px rgba(0,0,0,.10);
+  background: rgba(255,255,255,.55);
+  color:#0b1220;
+  backdrop-filter: blur(12px) saturate(1.25);
+  -webkit-backdrop-filter: blur(12px) saturate(1.25);
+}
+.aq-pill.is-good{
+  background: linear-gradient(120deg, rgba(20,184,166,.26), rgba(255,255,255,.55));
+}
+.aq-pill.is-normal{
+  background: linear-gradient(120deg, rgba(255,200,87,.28), rgba(255,255,255,.55));
+}
+.aq-pill.is-bad{
+  background: linear-gradient(120deg, rgba(255,77,141,.30), rgba(255,255,255,.55));
+}
+.aq-pill.is-very-bad{
+  background: linear-gradient(120deg, rgba(239,68,68,.55), rgba(255,255,255,.65));
+  color: #7f1d1d;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.65),
+    0 0 0 2px rgba(239,68,68,.35),
+    0 14px 32px rgba(239,68,68,.35);
+}
+.aq-pill.is-unknown{
+  background: rgba(17,24,39,.08);
+  color: rgba(15,23,42,.75);
+}
+
+
+.dock-temp-group{
+  display:flex;
+  align-items:baseline;
+  gap: 12px;
+}
+.aq-main-pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: clamp(20px, 3.2vh, 34px);
+  font-weight: 980;
+  letter-spacing: -.02em;
+  line-height: 1;
+  color:#0b1220;
+  border: 1px solid rgba(255,255,255,.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.65),
+    0 14px 30px rgba(0,0,0,.28);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  background: rgba(255,255,255,.65);
+}
+.aq-main-pill.is-good{
+  background: linear-gradient(120deg, rgba(20,184,166,.45), rgba(255,255,255,.65));
+}
+.aq-main-pill.is-normal{
+  background: linear-gradient(120deg, rgba(255,200,87,.50), rgba(255,255,255,.65));
+}
+.aq-main-pill.is-bad{
+  background: linear-gradient(120deg, rgba(255,77,141,.55), rgba(255,255,255,.65));
+}
+.aq-main-pill.is-very-bad{
+  background: linear-gradient(120deg, rgba(239,68,68,.65), rgba(255,255,255,.65));
+  color: #7f1d1d;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.65),
+    0 0 0 2px rgba(239,68,68,.35),
+    0 18px 40px rgba(239,68,68,.35);
+}
+.aq-main-pill.is-unknown{
+  background: rgba(17,24,39,.12);
+  color: rgba(15,23,42,.75);
+}
+
+.dock-cta{
+  flex: 0 0 auto;
+  margin-left: clamp(6px, 1vw, 10px);
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.16);
+  color: #0b1220;
+  font-size: clamp(12px, 1.6vh, 16px);
+  font-weight: 950;
+  letter-spacing: -.01em;
+}
+
+
+@media (max-width: 640px){
+  .info-dock{
+    border-radius: 18px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .dock-divider{
+    width: 100%;
+    height: 1px;
+  }
+  .dock-weather,
+  .dock-weather-top,
+  .dock-weather-main,
+  .dock-weather-sub{
+    align-items: flex-start;
+    justify-content: flex-start;
+    text-align: left;
+  }
+  .dock-desc{ max-width: 100%; text-align:left; }
+  .dock-cta{ align-self: flex-end; }
+}
+
+
+.carousel,
+.carousel-track,
+.book{
+  height: 100% !important;
+}
+
+.carousel-track{
+  align-items: stretch !important;
+}
+
+.book{
+  align-items: stretch !important;
+  justify-content: center;
+}
+
+.book img{
+  height: 100% !important;
+  width: auto !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  border-radius: 8px;
+}
+
+
+.books-area{
+  align-items: stretch !important;
+}
+
+.aq-inline{
+  font-size: clamp(18px, 2.6vh, 32px); 
+  font-weight: 950;
+  letter-spacing: -.02em;
+  margin-left: 10px;
+  white-space: nowrap;
+}
+
+
+.aq-inline.is-good{ color: #10b981; }        
+.aq-inline.is-normal{ color: #2e51db; }      
+.aq-inline.is-bad{ color: #ef4444; }         
+.aq-inline.is-very-bad{ color: #7f1d1d; }    
+.aq-inline.is-unknown{ color: rgba(0,0,0,.6); }
+
+
+</style>
+</head>
+<body>
+  <div class="poster-area" id="posterArea">
+    <img id="posterImg" src="assets/images/동아대학교 도서관.png" alt="동아대학교 도서관" draggable="false" oncontextmenu="return false;" />
+    <button class="poster-arrow p-left"  id="pPrev" aria-label="이전 이미지">‹</button>
+    <button class="poster-arrow p-right" id="pNext" aria-label="다음 이미지">›</button>
+  
+    
+  </div>
+
+  
+
+<div class="notice-bar" aria-label="상단 정보">
+  <div class="info-dock" id="noticeBar" role="button" tabindex="0"
+       aria-label="도서관 이용시간 상세 열기 (날씨 포함)">
+    <div class="dock-left">
+      <div class="dock-text">
+        <div class="dock-title">한림도서관</div>
+        <div class="dock-sub">Hallim Library</div>
+      </div>
+    </div>
+
+    <div class="dock-divider" aria-hidden="true"></div>
+
+    
+    <div class="dock-weather" id="weatherWidget" aria-label="부산 날씨" role="status">
+      <div class="dock-weather-top">
+        <div class="dock-loc">부산</div>
+        <div class="dock-updated" id="weatherUpdated">--</div>
+      </div>
+      <div class="dock-weather-main">
+        <div class="dock-temp-group">
+          <div class="dock-temp"><span id="weatherTemp">--</span><span class="dock-temp-unit">°C</span></div>
+          <span id="aqInline" class="aq-inline">대기질:--</span>
+        </div>
+        <div class="dock-desc" id="weatherDesc">날씨 불러오는 중…</div>
+      </div>
+      <div class="dock-weather-sub">
+        <span class="dock-item">체감 <b id="weatherFeels">--</b>°</span>
+        <span class="dot">•</span>
+        <span class="dock-item">풍속 <b id="weatherWind">--</b> km/h</span>
+        <span class="dot">•</span>
+        <span class="dock-item">오늘 <b id="weatherMinMax">--</b></span>
+        <span class="dot">•</span>
+  <span class="dock-item aq-item">PM10 <b id="pm10">--</b> µg/m³ <span id="pm10Badge" class="aq-pill is-unknown">--</span></span>
+  <span class="dot">•</span>
+  <span class="dock-item aq-item">PM2.5 <b id="pm25">--</b> µg/m³ <span id="pm25Badge" class="aq-pill is-unknown">--</span></span>
+      </div>
+    </div>
+
+    <div class="dock-cta" aria-hidden="true">이용시간 안내</div>
+  </div>
+</div>
+
+<div class="books-area">
+    <button class="arrow left" id="prev" aria-label="이전">&#10094;</button>
+<div class="gesture-hint" id="gestureHint" aria-hidden="true">
+      <span class="chev chev-left">‹</span>
+      <span class="hint-text">화면을 터치하세요.</span>
+      <span class="chev chev-right">›</span>
+    </div>
+
+    <div class="carousel">
+      <div class="carousel-track" id="track">
+        
+        
+        
+        <div class="book">
+          <img src="assets/images/내일을 위한 내 일.jpg" alt="내일을 위한 내 일"
+               data-title="내일을 위한 내 일"
+               data-author="이다혜"
+               data-desc="일터의 여성들에게 통찰력 있는 조언을 건네 왔던 이다혜 작가의 인터뷰집. 영화감독 윤가은, 배구 선수 양효진, 바리스타 전주연, 작가 정세랑, 경영인 엄윤미, 고인류학자 이상희, 범죄심리학자 이수정까지, 다르게 일하며 각별한 성취를 쌓아 온 7인의 여성을 만나 일과 직업에 관한 생각을 나눈다. 자신에게 맞는 직업이 무엇인지 탐색 중인 사람이라면, 일 잘하는 법을 또 계속하는 법을 고민 중인 사람이라면 누구나 이 책을 든든한 길잡이로 삼을 수 있을 것이다. 여기에 실린 이야기들로부터 힘을 얻고, 용기를 낼 수 있을 것이다."
+               data-loc="소장위치: 4층 테마도서" />
+        </div>
+        <div class="book">
+          <img src="assets/images/우리 일의 미래.jpg" alt="우리 일의 미래"
+               data-title="우리 일의 미래"
+               data-author="김봉찬 외"
+               data-desc="자신의 분야에서 치열하게 성장해 온 전문가 6인의 ‘일’ ‘미래’ ‘세계’에 대한 생각과 동시대적 성찰을 담은 책. 아날로그를 대표하는 출판(한미화)부터, 새로운 뉴스 생태계의 저널리즘(장일호), 기후위기 시대의 생태/환경(박진영), 자연과 인간을 연결하는 정원(김봉찬), 시대적 요청에 가장 성실히 답해 온 페미니즘(손희정), 과학과 기술의 사회적 의미를 탐구하는 과학기술학(임소연)까지, 긴 시간 현장에서 분투해 온 여섯 명의 필자가 “고심해서 건넨 한마디, 한 문장”에는 “삶을 걸고 자기 일과 대결해 온 사람들”의 통찰과 혜안이 녹아 있다."
+               data-loc="소장위치: 4층 테마도서" />
+        </div>
+        <div class="book">
+          <img src="assets/images/내가 하는 일은 정말 의미가 있을까.jpg" alt="내가 하는 일은 정말 의미가 있을까"
+               data-title="내가 하는 일은 정말 의미가 있을까"
+               data-author="라르스 스벤젠"
+               data-desc="현대인들에게 노동은 삶의 의미와 정체성을 부여하는 원천으로 인정받고 있다. 이 책에서는 노동이 자신의 삶에서 얼마나 큰 비중을 차지하는지 노동의 의미와 역할에 대해 짚어보고, 노동이 주는 근본적인 가치를 생각한다. 먼저 과거 세대의 사람들에게 노동이 어떤 의미였는지를 추적하며, 신학과 철학, 정치학, 심리학 등을 다양한 분야의 연구를 통해 이야기를 풀어간다. 또한 우리가 어떤 사람인지, 무슨 일을 하는지, 어떻게 일하는지 등 노동에 담긴 여러 가지 의미를 이야기한다. 이 책은 노동에 대한 다양한 측면을 알아보고, 자신과 노동에 대하여 다시 한번 생각해보는 계기를 제공한다. 인공지능(AI)의 시대, 노동의 의미와 역사에 대한 철학과 교수의 통찰!"
+               data-loc="소장위치: 4층 테마도서" />
+        </div>
+        <div class="book">
+          <img src="assets/images/덕업일치 가이드북.jpg" alt="좋아하는 걸로 돈 버는 덕업일치 가이드북"
+               data-title="좋아하는 걸로 돈 버는 덕업일치 가이드북"
+               data-author="체크인(정재형)"
+               data-desc="덕업일치의 모든 과정을 담은 가이드북이다. 좋아하는 것을 잘하는 것으로 바꾸는 법, SNS로 팬 모으기, 100% 먹히는 콘텐츠를 만드는 노하우, 상대를 단숨에 사로잡는 저자만의 글쓰기 핵심 스킬 등을 소개한다. 장애물과 슬럼프를 맞닥뜨리더라도 거뜬히 극복할 수 있는 비결과 현실적인 고민을 담아 저자가 먼저 경험한 시행착오까지 아낌없이 나눈다. 이 외에도 여러 호텔과 협업하는 과정뿐 아니라 무조건 성공하는 셀프 브랜딩 노하우, 부록으로 저자의 흥미로운 덕질 스토리까지 모두 공개한다."
+               data-loc="소장위치: 4층 테마도서" />
+        </div>
+        <div class="book">
+          <img src="assets/images/혼자라는 가족.jpg" alt="혼자라는 가족"
+               data-title="혼자라는 가족"
+               data-author="김보리"
+               data-desc="온전히 혼자 살아간다면 어떨까? 스스로라는 동반자와 함께 평생을 말이죠. 일시적인 1인 가구나 예능 프로그램에서 보는 혼자 사는 셀럽의 삶과는 다를지도 모른다. 혼자 살아간다는 것은 자신을 온전히 들여다보는 일이다. 편안함도 있지만 고독도 있고 안정감도 있지만 불편함도 있다. 자신과 끊임없이 대화하고, 자신이라는 유일한 동반자를 받아들여야 한다. 어떤 의미로는 가족을 구성해 살아가는 것과 별반 다르지 않다. 스스로를 의지하고 돌보며 살아가는 ‘혼자라는 가족’을 이루어 사는 것이다."
+               data-loc="소장위치: 4층 테마도서" />
+        </div>
+        
+        <div class="book">
+          <img src="assets/images/정신이 들어요 이제부터 혼자 사셔야 해요.jpg" alt="정신이 들어요? 이제부터 혼자 사셔야 해요"
+               data-title="정신이 들어요? 이제부터 혼자 사셔야 해요"
+               data-author="둥지"
+               data-desc="대한민국 땅에 자리를 조금 차지하고 사는, 지극히 평범한 청년이 하나 있다. 포장이 안 된 흙길에 벌렁 누워 있는 길고양이, 걱정과 인자함을 동시에 담은 얼굴로 인사하는 가족들. 고향의 풍경이 쏜살같이 지나가는 버스 밖 창문을 보며, 그 청년은 갑작스러운 서울살이를 시작한다. 마치 정신을 잃었다 깨어난 사람처럼 대체로 얼떨떨하게, 또 가끔은 외롭고 우울하게 서울살이를 시작했지만, 그 안에도 행복은 있다. 그는 따뜻하고 촉촉한 보살핌을 기다리는 방 안의 초록섬에게, 사랑하는 사람과 지내는 소소한 순간에게, 내가 해낼 수 있는 보람찬 일에게 자신만의 사랑을 쏟아낼 준비가 되어있다. 이 책은 분주한 회색 도시에서 자신만의 둥지를 찾아다닐 운명에 처해 있는 이들에게 작은 위로와 은은한 친근함을 선물해 줄 것이다."
+               data-loc="소장위치: 4층 테마도서" />
+        </div>
+        
+        <div class="book">
+          <img src="assets/images/나의 누수 일지.jpg" alt="나의 누수 일지"
+               data-title="나의 누수 일지"
+               data-author="김신회"
+               data-desc="세상 물정이라고는 모르고, 싫은 소리도 할 줄 모르는, 책임감과 용기마저 부족한 회피형 성격의 ‘나’는 생애 처음으로 피해 상황을 해결하며, ‘빌런 이웃’과의 분쟁에 대처한다. 그리고 조금씩 변화해간다. ‘인생 쪼렙’인 ‘나’는 난데없는 ‘누수 (희)비극’을 슬기롭게 헤쳐나가려고 아등바등 노력하는데……. 마치 한 편의 소설처럼 숨 가쁘게 읽히는 이 책에는 1인 여성 가구의 애환, 전업 작가로서의 기쁨과 슬픔, 개 보호자로서의 일상, 그리고 이웃과의 분쟁의 과정이 고스란히 담겨 있다. 울고 싶은 일 앞에서마저 결국 웃기고야 마는 김신회 작가 특유의 위트와 자조 넘치는 글은 집의 누수를 넘어 인생의 누수를 건너고 있는 많은 독자들에게 공감과 눈물, 웃음을 동시에 불러일으킬 것이다."
+               data-loc="소장위치: 4층 테마도서" />
+        </div>
+        
+        <div class="book">
+          <img src="assets/images/낭만적 은둔의 역사.jpg" alt="낭만적 은둔의 역사"
+               data-title="낭만적 은둔의 역사"
+               data-author="데이비드 빈센트"
+               data-desc="케임브리지와 옥스퍼드 대학교에서 역사를 연구한 저자가 약 400년 동안의 혼자 있기를 최초로 다룬 대중서로, 우리에게 특별한 시간여행을 권하는 책이다. 수 세기 동안 사람들이 혼자 있는 시간을 어떻게 바라보고, 살아왔고, 사랑했는지를 따라가다 보면 과거의 시간과 현재의 내가 연결되며 흔치 않은 위로를 느끼게 된다. 사람들 속에서 혼자만의 여유를 갖는 일 또는 집단에서 벗어나 혼자 된 시간을 즐겁게 마주하는 법은 현재까지도 우리의 관심사이다. 그 방편으로 독서, 우표 수집, 자수, 애완동물의 유행부터 단독 세계일주라는 극한의 은둔까지 각종 여가활동이 탄생하고 취미로 자리 잡는 과정이 펼쳐진다."
+               data-loc="소장위치: 4층 테마도서" />
+        </div>
+        
+        <div class="book">
+          <img src="assets/images/혼자가 편하다면, 그게 정답입니다.jpg" alt="혼자가 편하다면, 그게 정답입니다"
+               data-title="혼자가 편하다면, 그게 정답입니다"
+               data-author="코스메틱 다나카"
+               data-desc="이 책은 고독을 주제로 삼고 있지만, 이를 부정적으로만 다루지 않는다. 오히려 고독은 불안하거나 외롭기만 한 감정이 아니라, 자신만의 속도로 삶을 살아갈 수 있는 기회라는 점에 초점을 맞춘다. ㄴ저자는 타인의 기대에 맞추기 위해 노력하는 대신, 자신만의 방식으로 일상과 미래를 설계하는 과정을 통해 고독이 가진 장점을 발견하도록 돕는다. “혼자여도 괜찮다”라는 마음으로 고독을 받아들이고, 이를 통해 삶을 더 안정적이고 충만하게 살아가는 데 필요한 실질적인 팁과 전략을 이야기한다. 이 과정을 따라가다 보면 자연스럽게 고독을 부정적으로 보던 시각에서 벗어나 혼자서도 온전하게 내 삶을 선택하는 방법을 살필 수 있을 것이다."
+               data-loc="소장위치: 4층 테마도서" />
+        </div>
+        
+        <div class="book">
+          <img src="assets/images/혼자의 시간으로 더 깊어지는 법에 관하여.jpg" alt="혼자의 시간으로 더 깊어지는 법에 관하여"
+               data-title="혼자의 시간으로 더 깊어지는 법에 관하여"
+               data-author="레누카 가브라니"
+               data-desc="저자 자신의 내밀한 이야기인 동시에 사실은 현 시대를 사는 우리 모두가 공감할 수밖에 없는 ‘외로움’에 대한 가장 현실적인 통찰이자 ‘나’라는 존재에 대한 가장 본질적 탐구다. 사람들에 둘러싸여 있지만 정작 자기 자신을 잃어가는 이들에게 이 책이 전해주는 울림은 강렬하다. 저자는 자신의 경험과 통찰을 바탕으로 ‘혼자의 시간을 어떻게 의미 있고, 충만하게 만들어갈 수 있는지’ 매우 솔직하면서도 지혜롭게 들려준다. 페이지 곳곳에는 혼자의 시간을 자기 성장의 기회로 바꾸는 방법, 타인에게 의존하지 않고 내면의 힘을 키우는 연습, 진정한 자유와 창조성을 발견하는 과정, 외로움에서 벗어나 나 자신을 있는 그대로 이해하고 사랑하는 법 등에 관한 진심 어린 조언들이 가득 담겨 있다. 이미 수많은 독자들이 ‘인증’한 것처럼, 그리고 이 책의 제목대로 ‘혼자의 시간으로 더 깊어지는’ 당신이 되고 싶다면, 지금 페이지를 펼쳐보자. 고요하고 완전하게, 비로소 당신다운 당신을 찾아가는 여정이 될 것이다."
+               data-loc="소장위치: 4층 테마도서" />
+        </div>
+        
+        <div class="book">
+          <img src="assets/images/혼자살기의 정석.jpg" alt="혼자살기의 정석"
+               data-title="혼자살기의 정석"
+               data-author="주부의벗"
+               data-desc="자신의 공간을 산뜻하게 유지하는 사람은 집이 자신을 따뜻하게 맞아 주는 느낌을 받는다고 한다. 그런 사람에게 집은 휴식과 재충전의 공간이다. 하지만 집을 쾌적하게 유지하는 데에는 시간과 기술이 필요하다. 책 《혼자살기의 정석》은 이제 막 독립해 자취를 시작한 사람에게도 집이 더없이 좋은 공간이 되도록 살림의 노하우를 알려 주는 아주 꼼꼼한 안내서다. ‘살림’은 흔히 경험이 쌓여야 잘할 수 있다고 인식되는 영역이다. 그만큼 처음부터 잘하기 어렵지만 정식으로 배움을 구하기도 어려운 애매한 영역이기도 하다. 그런 살림을 책으로 익힐 수도 있을까. 1장 <집 구하기와 이사>를 시작으로 7장 <안전과 갈등 해결>까지 총 7장으로 이루어진 이 책은 혼자 사는 사람에게 일어날 수 있는 문제들에 최대한 답하면서 일상의 질을 한 단계 높이는 노하우를 담고 있다. 그만큼 폭넓고 또한 집약적이다."
+               data-loc="소장위치: 4층 테마도서" />
+        </div>
+        
+        <div class="book">
+          <img src="assets/images/1인 가구를 위한 셀프 집 꾸미기.jpg" alt="1인 가구를 위한 셀프 집 꾸미기"
+               data-title="1인 가구를 위한 셀프 집 꾸미기"
+               data-author="최유정"
+               data-desc="처음 독립하여 작은 공간이지만 나만의 집을 가진 1인 가구 독리버들이 혼자 힘으로 자기 집을 예쁘고 실용적으로 꾸미도록 도와준다. 1인 가구를 포함한 수많은 공간 컨설팅을 해온 저자가 실제 공간 구성 사례를 바탕으로, 1인 가구 누구나 예쁜 집을 꾸미도록 안내하고 있다. 집 꾸미기는 메이크업과 같다는 저자는 실측, 예산, 자재 선택부터 공간 구성과 소품 배치, 정리정돈, 감성 더하기, 조명, 도배, 커튼에 이르기까지 집이 예뻐지는 모든 비법을 소개한다. 또 계속 예쁜 집이 유지되도록 하는 관리법과 그 안에서 예쁘게 살아가는 방법까지도 알려주고 있다."
+               data-loc="소장위치: 4층 테마도서" />
+        </div>
+        
+        <div class="book">
+          <img src="assets/images/밥 챙겨 먹어요, 행복하세요.jpg" alt="밥 챙겨 먹어요, 행복하세요"
+               data-title="밥 챙겨 먹어요, 행복하세요"
+               data-author="마포농수산쎈타"
+               data-desc="수많은 요리책들이 있고, 수많은 요리 유튜브 채널이 있고, 우리는 여전히 귀찮음을 핑계로 오늘도 배달 앱을 켠다. 그러다 문득 어느 날은 이 모든 게 지겨워지기도 한다. 다 먹고살자고 열심히 일하는 것인데 언제까지 이 물리는 배달 음식을 먹어야 한단 말인가. 바로 그런 날, 마음 편한 맛이 필요한 그날에 이 책이 필요하다. 이 책의 저자 '마포농수산쎈타'는 홀연히 트위터에 등장해 먹고 마시는 소소한 행복을 전해오고 있다. 아주 간편하게 뚝딱 만들 수 있는 집밥 (혹은 안주)을 남다른 감성으로 게재하며 지대한 사랑을 받고 있는 중이다. 그가 창조해 전국적 유명세를 얻은 레시피는 순두부열라면과 대파돼지찜 등이 있고 이 밖에도 확실한 행복이 될만한, 그러나 참으로 간단한 요리들이 이 책에 실려있다. 당장 우리 집 냉장고에 있는 평범한 재료로 10분 내외로 뚝딱, 군침 도는 요리들이 탄생하는 비법, 요리와 어울리는 술 추천, 휘리릭 만드는 술안주 등의 간단 요리들, 그동안 온라인상에서 한 번도 공개하지 않았던 미공개 레시피도 아낌없이 담아냈다. 그간 ‘마포농수산쎈타’를 구독하거나 좋아했던 이들에게는 더없이 반가운 책이 될 것이다."
+               data-loc="소장위치: 4층 테마도서" />
+        </div>        
+        <div class="book">
+          <img src="assets/images/베테랑의 몸.jpg" alt="베테랑의 몸"
+               data-title="베테랑의 몸"
+               data-author="희정"
+               data-desc="스스로 단련하는 시간 동안의 변화에 초점을 맞추어, 체화된 기술과 일이 빚어낸 베테랑의 ‘몸’들을 드러내는 책이다. 이 책의 저자이자 사회문제에 맞서고 분투하며 살아가는 이들을 꾸준히 포착해온 기록노동자 희정은, 서로 다른 성별·연령·분야의 베테랑 13인을 만나 인터뷰하며 몸-일-일터-사회 사이의 유기적인 관계를 풀어낸다. 세공사, 조리사, 로프공, 어부, 안마사... 같은 자세로, 같은 태도로 10년, 20년, 30년 오래 일해온 사람들이다. 이들이 오랜 시간 쌓아온 기술이, 노력이, 내 일에 대해서만큼은 내가 확실하게 해낼 수 있다는 자신감이 자부심을 만들어냈다. 여전히 반찬 가게의 반찬과 손주의 식단표를 눈여겨보며 공부하는 조리사의 기획력이, 공중에 매달려 자유로움을 느끼며 건물 외벽의 실리콘 작업을 하는 로프공의 숙련된 기술이 이제야 언어가 되어 머리에 들어온다. 이 책엔 단단한 직업관이, 노련한 기술자들의 진심이 들어있다."
+               data-loc="소장위치: 4층 테마도서" />
+        </div>
+        <div class="book">
+          <img src="assets/images/공직에서 길을 찾다.jpg" alt="공직에서 길을 찾다"
+               data-title="공직에서 길을 찾다"
+               data-author="이무하"
+               data-desc="경직된 조직 문화, 과도한 민원 업무, 그리고 상대적으로 낮은 보수에 따른 박탈감 등으로 최근 신입 공무원들의 잦은 퇴직이 이어지고 있다. 이러한 이탈을 막고 공직자의 전문성과 청렴성을 높이기 위해서는 무엇보다 지속적인 자기계발이 중요하다. ‘공문서 작성법’이라는 자신만의 콘텐츠를 개발해 퍼스널 브랜딩에 성공한 19년 차 교육행정직 공무원의 자기계발 스토리를 담고 있다. ‘대한민국 공문서의 표준화’를 목표로 하는 저자는 본업인 공직에 충실하면서도 공문서 작성법을 체계화해 블로그, 책 출간, 강연, 직무연수 콘텐츠 개발 등 다양한 채널을 통해 새로운 수익을 창출하고 있다. 평범한 공무원에서 독보적인 브랜드로 성장한 그의 사례는 자기계발과 전문성 강화, 그리고 퍼스널 브랜딩을 통해 공무원의 새로운 성장 모델을 제시한다."
+               data-loc="소장위치: 4층 테마도서" />
+        </div>
+        <div class="book">
+          <img src="assets/images/내가 선택한 취업의 게임.jpg" alt="내가 선택한 취업의 게임"
+               data-title="내가 선택한 취업의 게임"
+               data-author="이소연"
+               data-desc="'어떤 회사, 어떤 직무에 지원하는 게 좋을까?', '면접만 가면 떨면서 실수하는 내가 싫어.', '신입도 아닌데, 직무를 바꾸기엔 너무 늦은 걸까?' 이 책은 자신을 정확히 분석해 적성에 꼭 맞는 직무를 찾는 작업부터 실제 채용 단계인 서류, 면접, 연봉 협상, 그리고 이직과 해외 취업 과정에서 유의해야 할 디테일을 모두 다뤘다. 커리어 개발은 경험에서 우러난 진짜 정보, 실전에서 실행 가능한 정보, 여기에 몇 가지 전략만 제대로 알고 있으면 충분히 스스로 만족스러운 성과를 거둘 수 있는, 규칙이 존재하는 게임이다. 현재 직장을 찾고 있는 취업 준비생, 지금 다니고 있는 회사가 불만족스러워 이직을 고민 중이거나 해외 취업에 도전해 보고 싶은 직장인, 혹은 나의 일과 삶의 의미를 찾지 못한 채 방황하고 있는 사람 모두에게 이 책을 추천한다."
+               data-loc="소장위치: 4층 테마도서" />
+        </div>
+        <div class="book">
+          <img src="assets/images/문과생 제약회사로 출근합니다.jpg" alt="문과생 제약회사로 출근합니다"
+               data-title="문과생 제약회사로 출근합니다"
+               data-author="백소영"
+               data-desc="저자가 제약회사 마케터가 되어야겠다고 결심한 계기가 무엇인지를 비롯해 제약회사에서 일하기 위해 반드시 알고 있어야 하는 부서별 업무와 지원 자격, 필요한 역량은 무엇인지 소개하고, 각종 데이터를 바탕으로 제약 산업을 이해하기 위한 필수 정보를 알려준다. 국내사와 외국계 제약사는 어떤 차이가 있는지, 제약회사 채용에 관한 정보는 어디서 어떻게 얻는지, 특히 자소서나 면접에서 본인의 능력을 어필할 수 있는 제약 산업의 지식은 무엇인지 등 취업에 관한 꿀팁도 소개한다. 또한 저자가 주니어 마케터였던 시절, 신입 사원에게 프로페셔널한 모습을 보여주고 싶어 욕심을 부렸다가 오히려 쫓겨나는 부끄러운 모습을 보여줬던 일화, 마케터가 담당 제품에 과한 애정을 가져서 생겼던 문제들, 허리케인 때문에 약제 생산이 증단된 위기 극복기, 블랙컨슈머에 대응했던 경험 등 제약회사에서 일하는 사람들의 진솔한 이야기도 담았다."
+               data-loc="소장위치: 4층 테마도서" />
+        </div>
+        <div class="book">
+          <img src="assets/images/배민기획자의 일.jpg" alt="배민 기획자의 일"
+               data-title="배민 기획자의 일"
+               data-author="엄유진"
+               data-desc="식음료 앱 1위 ‘배달의민족’ 기획자·PM 8명이 자신들의 일과 직장생활, 개인적인 경력 관리 등 진솔한 이야기를 에피소드 형식으로 흥미롭고 공감되게 풀어낸 책이다. 특히 IT분야 대표적인 혁신 기업군으로 꼽히는 최신 앱 서비스 회사의 업무 현장을 실감나게 전달하고 있어, 해당 분야로 진출하고 싶은 취업준비생이나 관련 기업 직장인, 최신 IT기업 문화 등에 관심 있는 사람들에게 간접경험과 유용한 정보를 제공한다. 그들은 어떻게 일을 할까? 그들의 앱 서비스는 어떤 과정을 거쳤을까? 그들의 업무 형식은 어떻게 다를까? 그들은 어떤 직원을 채용하며 퇴근 후 회식 및 휴식의 모습은 어떠할까? 등등…. 자유로운 조직 문화 및 근무 환경, 최신 IT기술을 대표하는 혁신 기업 이미지, 선도적인 복지와 대우 등으로 취업준비생들의 선호도가 높은 '배달의민족'의 실제 근무자들의 생생한 이야기!"
+               data-loc="소장위치: 4층 테마도서" />
+        </div>
+      </div>
+      <button class="arrow right" id="next" aria-label="다음">&#10095;</button>
+    </div>
+  </div>
+
+
+  
+  <div class="modal" id="bookModal" aria-hidden="true" role="dialog" aria-label="책 정보">
+    <div class="modal-card" role="document">
+      <div class="modal-header">
+        <div class="modal-cover"><img id="mCover" alt="책 표지" /></div>
+        <div>
+          <div class="modal-title" id="mTitle"></div>
+          <div class="modal-author" id="mAuthor"></div>
+        </div>
+      </div>
+      <div class="modal-body" id="mDesc"></div>
+      <div class="modal-meta" id="mLoc"></div>
+      <div class="modal-footer">
+        <button class="btn-close" id="mClose">닫기</button>
+        <div class="countdown">자동 닫힘 <span id="mCountdown">15</span>s</div>
+      </div>
+    </div>
+  </div>
+
+    
+  <div class="modal" id="hoursModal" aria-hidden="true" role="dialog" aria-label="도서관 이용시간">
+    <div class="modal-card hours-card" role="document">
+      <div class="hours-head">
+        <div class="hours-title-wrap">
+          <div style="min-width:0">
+            <div class="hours-title">도서관 이용시간</div>
+            <div class="hours-sub">한림 도서관</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hours-grid" aria-label="이용시간 목록">
+        <div class="hours-row">
+          <div class="hours-label">제1자료실</div>
+          <div class="hours-time">평일 09:00~20:00 · 주말·공휴일 휴실</div>
+        </div>
+        <div class="hours-row">
+          <div class="hours-label">제2자료실</div>
+          <div class="hours-time">평일 09:00~20:00 · 주말·공휴일 휴실</div>
+        </div>
+        <div class="hours-row">
+          <div class="hours-label">열람실</div>
+          <div class="hours-time">매일 07:00~24:00</div>
+        </div>
+        <div class="hours-row">
+          <div class="hours-label">열람실(시험기간)</div>
+          <div class="hours-time">평일·주말·공휴일 07:00~익일02:00</div>
+        </div>
+      </div>
+
+      <div class="hours-note">
+        ※ 운영시간은 학내 사정에 따라 변동될 수 있습니다. (문의: 051-200-6274)
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-close" id="hClose">닫기</button>
+        <div class="countdown">자동 닫힘 <span id="hCountdown">15</span>s</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+
+(function(){
+  const posterArea = document.getElementById('posterArea');
+  const posterImg  = document.getElementById('posterImg');
+
+  function applyPosterBg(){
+    if(!posterImg || !posterArea) return;
+    const url = posterImg.currentSrc || posterImg.src;
+    if(url){
+      posterArea.style.setProperty('--poster-bg', `url("${url}")`);
+    }
+  }
+  if(posterImg.complete){ applyPosterBg(); }
+  posterImg.addEventListener('load', applyPosterBg);
+})();
+
+
+document.addEventListener('contextmenu', (e)=>{ if(e.target.tagName==='IMG') e.preventDefault(); }, {capture:true});
+document.addEventListener('dragstart', (e)=>{ if(e.target.tagName==='IMG') e.preventDefault(); }, {capture:true});
+
+const track = document.getElementById('track');
+const viewport = document.querySelector('.carousel');
+const prev = document.getElementById('prev');
+const next = document.getElementById('next');
+
+const cards = Array.from(track.children);
+cards.forEach(card=> track.appendChild(card.cloneNode(true)));
+
+let offset = 0;
+let speed = -40;
+let targetSpeed = -40;
+let last = performance.now();
+
+function contentWidth(){ return track.scrollWidth / 2; }
+function viewWidth(){ return viewport.clientWidth; }
+
+function wrapOffset(){
+  const half = contentWidth();
+  while (offset <= -half) offset += half;
+  while (offset > 0) offset -= half;
+}
+
+function loop(now){
+  const dt = (now - last) / 1000; last = now;
+  if(!draggingCarousel){
+    const blend = 1 - Math.pow(0.985, Math.max(1, dt*60));
+    speed = speed + (targetSpeed - speed) * blend;
+    offset += speed * dt;
+    wrapOffset();
+    track.style.transform = `translateX(${offset}px)`;
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame((t)=>{ last=t; loop(t); });
+
+let draggingCarousel = false;
+let startX = 0, startOffset = 0, lastX = 0, lastT = 0, vx = 0;
+
+function pointerX(e){ return (e.touches ? e.touches[0].clientX : e.clientX); }
+
+function onPointerDown(e){
+  draggingCarousel = true;
+  startX = pointerX(e); startOffset = offset;
+  lastX = startX; lastT = performance.now();
+  speed = 0; bumpInteract();
+}
+function onPointerMove(e){
+  if(!draggingCarousel) return;
+  const x = pointerX(e);
+  offset = startOffset + (x - startX);
+  wrapOffset();
+  track.style.transform = `translateX(${offset}px)`;
+  const now = performance.now(); const dx = x - lastX; const dt = Math.max(0.001, (now - lastT) / 1000);
+  vx = dx / dt; lastX = x; lastT = now;
+}
+function onPointerUp(){
+  if(!draggingCarousel) return;
+  draggingCarousel = false;
+  const maxSpeed = 600;
+  speed = Math.max(-maxSpeed, Math.min(maxSpeed, vx));
+  targetSpeed = -40; bumpInteract();
+}
+viewport.addEventListener('mousedown', onPointerDown, {passive:true});
+window.addEventListener('mousemove', onPointerMove, {passive:true});
+window.addEventListener('mouseup', onPointerUp, {passive:true});
+viewport.addEventListener('touchstart', onPointerDown, {passive:true});
+window.addEventListener('touchmove', onPointerMove, {passive:false});
+window.addEventListener('touchend', onPointerUp, {passive:true});
+
+function nudge(dir){
+  const step = viewWidth();
+  const impulse = (dir < 0 ? -1 : 1) * 500;
+  offset += dir * step * 0.02; wrapOffset();
+  track.style.transform = `translateX(${offset}px)`;
+  speed = impulse; targetSpeed = -40; bumpInteract();
+}
+prev.addEventListener('click', ()=> nudge(+1));
+next.addEventListener('click', ()=> nudge(-1));
+
+
+const modal = document.getElementById('bookModal');
+const mCover = document.getElementById('mCover');
+const mTitle = document.getElementById('mTitle');
+const mAuthor = document.getElementById('mAuthor');
+const mDesc = document.getElementById('mDesc');
+const mLoc = document.getElementById('mLoc');
+const mClose = document.getElementById('mClose');
+const mCountdown = document.getElementById('mCountdown');
+
+let countdownTimer = null; let lastInteract = Date.now();
+
+function openModal(img){
+  mCover.src = img.src; mCover.draggable = false;
+  mTitle.textContent = img.dataset.title || '';
+  mAuthor.textContent = img.dataset.author || '';
+  mDesc.textContent = img.dataset.desc || '';
+  mLoc.textContent = img.dataset.loc || '';
+  modal.setAttribute('aria-hidden','false');
+  mCountdown.textContent = 15;
+  lastInteract = Date.now();
+  clearInterval(countdownTimer);
+  countdownTimer = setInterval(()=>{
+    const idleSec = Math.floor((Date.now()-lastInteract)/1000);
+    const left = Math.max(0, 15 - idleSec);
+    mCountdown.textContent = left;
+    if(left <= 0){ closeModal(); }
+  }, 250);
+}
+function closeModal(){
+  modal.setAttribute('aria-hidden','true');
+  clearInterval(countdownTimer); countdownTimer=null;
+}
+modal.addEventListener('mousemove', ()=> lastInteract = Date.now());
+modal.addEventListener('touchstart', ()=> lastInteract = Date.now(), {passive:true});
+mClose.addEventListener('click', closeModal);
+modal.addEventListener('click', (e)=>{ if(e.target === modal) closeModal(); });
+
+document.querySelectorAll('.book img').forEach(img=>{
+  img.addEventListener('click', ()=> openModal(img));
+  img.setAttribute('draggable','false');
+  img.setAttribute('oncontextmenu','return false;');
+});
+
+
+
+const gestureHint = document.getElementById('gestureHint');
+const IDLE_BEFORE_HINT_MS = 10000; // 10초
+function showSwipeHint(){ if (gestureHint) gestureHint.setAttribute('aria-hidden','false'); }
+function hideSwipeHint(){ if (gestureHint) gestureHint.setAttribute('aria-hidden','true'); }
+function bumpInteract(){ lastInteract = Date.now(); hideSwipeHint(); }
+['mousemove','keydown','click','touchstart','wheel'].forEach(evt=> window.addEventListener(evt, bumpInteract, {passive:true}));
+viewport.addEventListener('touchstart', bumpInteract, {passive:true});
+viewport.addEventListener('mousedown',  bumpInteract, {passive:true});
+prev.addEventListener('click', bumpInteract);
+next.addEventListener('click', bumpInteract);
+setInterval(()=>{ const idleFor = Date.now() - lastInteract; if (idleFor >= IDLE_BEFORE_HINT_MS) showSwipeHint(); }, 1000);
+
+
+(function(){
+  const GOOGLE_API_KEY = 'AIzaSyBi45EE-6g8e_5e18ikpKybDOddQ6NeBU8';
+  const DRIVE_FOLDER_ID = '1I0G9cfTIvnmXkxmFcpGpDHusr8ety-5-';
+
+  const INTERVAL_MS = 20000;
+  const posterArea = document.getElementById('posterArea');
+  const posterImg  = document.getElementById('posterImg');
+
+  let files = [];
+  let idx = 0;
+  let timer = null;
+
+  async function fetchDriveImages(){
+    const q = encodeURIComponent(`'${DRIVE_FOLDER_ID}' in parents and mimeType contains 'image/' and trashed = false`);
+    const fields = encodeURIComponent('nextPageToken, files(id,name,mimeType,modifiedTime,webContentLink,thumbnailLink)');
+    const base = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&orderBy=name&pageSize=1000&key=${GOOGLE_API_KEY}`;
+
+    let pageToken = '';
+    let all = [];
+    try{
+      do{
+        const url = base + (pageToken ? `&pageToken=${pageToken}` : '');
+        const res = await fetch(url);
+        if(!res.ok) throw new Error('Drive API error: ' + res.status);
+        const data = await res.json();
+        const batch = (data.files || []).map(f => {
+          const raw = `https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&key=${GOOGLE_API_KEY}`;
+          const dl  = `https://drive.google.com/uc?export=download&id=${f.id}`;
+          const thumb = f.thumbnailLink ? f.thumbnailLink.replace(/=s\d+/, '=s2000') : null;
+
+          const candidates = [raw, dl];
+          if (thumb) candidates.push(thumb);
+
+          return {
+            id: f.id,
+            name: f.name || '포스터',
+            candidates,
+            url: candidates[0],
+            tried: 0
+          };
+        });
+        all = all.concat(batch);
+        pageToken = data.nextPageToken || '';
+      } while(pageToken);
+    }catch(err){
+      console.warn('[Drive]', err);
+    }
+    return all;
+  }
+
+  function setPoster(i){
+    if(!files.length) return;
+    idx = (i + files.length) % files.length;
+    const f = files[idx];
+    posterImg.alt = f.name || '포스터';
+    posterImg.src = f.candidates[f.tried || 0];
+  }
+
+  function nextPoster(){ setPoster(idx + 1); }
+  function prevPoster(){ setPoster(idx - 1); }
+
+  function startLoop(){
+    clearInterval(timer);
+    timer = setInterval(()=> { nextPoster(); }, INTERVAL_MS);
+  }
+
+  let swiping = false, startX = 0, deltaX = 0;
+
+  const MIN_SWIPE_PX  = 110;
+  const MIN_SWIPE_PCT = 0.15;
+  function thresholdPx(){
+    const W = posterArea.clientWidth || window.innerWidth || 1;
+    return Math.max(MIN_SWIPE_PX, Math.floor(W * MIN_SWIPE_PCT));
+  }
+
+  function resist(dx){
+    const W = posterArea.clientWidth || window.innerWidth || 1;
+    const limit = W * 0.35;
+    const clamped = Math.max(-limit, Math.min(limit, dx));
+    return clamped * 0.85;
+  }
+  function setImgX(px){
+    posterImg.style.transform = `translateX(${px}px)`;
+  }
+  function px(e){ return e.touches ? e.touches[0].clientX : e.clientX; }
+
+  function onDown(e){
+    swiping = true; startX = px(e); deltaX = 0;
+    clearInterval(timer);
+    posterImg.classList.add('dragging');
+    if(typeof bumpInteract === 'function') bumpInteract();
+  }
+  function onMove(e){
+    if(!swiping) return;
+    deltaX = px(e) - startX;
+    setImgX(resist(deltaX));
+    e.preventDefault?.();
+  }
+
+  let isAnimating = false;
+  function animateTo(direction){
+    if(isAnimating) return;
+    isAnimating = true;
+
+    const W = posterArea.clientWidth || window.innerWidth || 1;
+    const outX = direction * W;
+    posterImg.classList.remove('dragging');
+    setImgX(outX);
+
+    const handleOut = () => {
+      posterImg.removeEventListener('transitionend', handleOut);
+      posterImg.classList.add('dragging');
+      if(direction < 0) nextPoster(); else prevPoster();
+      const inStart = -direction * Math.min(W * 0.25, 220);
+      setImgX(inStart);
+
+      requestAnimationFrame(()=>{
+        posterImg.classList.remove('dragging');
+        setImgX(0);
+        posterImg.addEventListener('transitionend', function handleIn(){
+          posterImg.removeEventListener('transitionend', handleIn);
+          startLoop();
+          if(typeof bumpInteract === 'function') bumpInteract();
+          isAnimating = false;
+        }, { once:true });
+      });
+    };
+    posterImg.addEventListener('transitionend', handleOut, { once:true });
+  }
+
+  function onUp(){
+    if(!swiping) return;
+    swiping = false;
+    posterImg.classList.remove('dragging');
+
+    const dx = deltaX; deltaX = 0;
+    if(Math.abs(dx) >= thresholdPx()){
+      animateTo(dx < 0 ? -1 : +1);
+    }else{
+      setImgX(0);
+      startLoop();
+      if(typeof bumpInteract === 'function') bumpInteract();
+    }
+  }
+
+  posterArea.addEventListener('mousedown', onDown, {passive:true});
+  window.addEventListener('mousemove', onMove, {passive:false});
+  window.addEventListener('mouseup',   onUp,   {passive:true});
+  posterArea.addEventListener('touchstart', onDown, {passive:true});
+  window.addEventListener('touchmove',  onMove, {passive:false});
+  window.addEventListener('touchend',   onUp,   {passive:true});
+
+  const pPrev = document.getElementById('pPrev');
+  const pNext = document.getElementById('pNext');
+  if (pPrev) pPrev.addEventListener('click', () => animateTo(+1));
+  if (pNext) pNext.addEventListener('click', () => animateTo(-1));
+
+  posterImg.onerror = () => {
+    const f = files[idx];
+    if (!f) return;
+    f.tried = (f.tried || 0) + 1;
+    if (f.tried < (f.candidates?.length || 0)) {
+      posterImg.src = f.candidates[f.tried];
+    } else {
+      f.tried = 0;
+      nextPoster();
+    }
+  };
+
+  (async function initPoster(){
+    files = await fetchDriveImages();
+    files.sort((a,b)=> a.name.localeCompare(b.name, 'ko', {numeric:true, sensitivity:'base'}));
+
+    if(files.length){
+      files.slice(0, Math.min(files.length, 6)).forEach(f=>{
+        const im = new Image(); im.decoding = 'async'; im.src = f.candidates[0];
+      });
+      setPoster(0);
+      startLoop();
+    }else{
+      console.info('[Drive] 폴더에 이미지가 없거나 접근 불가. 로컬 포스터로 유지합니다.');
+    }
+  })();
+})();
+
+
+const hoursBtn   = document.getElementById('hoursBtn');
+const hoursTopBtn = document.getElementById('noticeBar');
+const hoursModal = document.getElementById('hoursModal');
+const hClose     = document.getElementById('hClose');
+const hCountdown = document.getElementById('hCountdown');
+
+let hTimer = null, hLast = Date.now();
+
+function openHours(){
+  if(!hoursModal) return;
+  hoursModal.setAttribute('aria-hidden','false');
+  hCountdown.textContent = 15;
+  hLast = Date.now();
+  clearInterval(hTimer);
+  hTimer = setInterval(()=>{
+    const left = Math.max(0, 15 - Math.floor((Date.now()-hLast)/1000));
+    hCountdown.textContent = left;
+    if(left <= 0) closeHours();
+  }, 250);
+}
+function closeHours(){
+  if(!hoursModal) return;
+  hoursModal.setAttribute('aria-hidden','true');
+  clearInterval(hTimer); hTimer=null;
+}
+
+if(hoursBtn){
+  hoursBtn.addEventListener('click', openHours);
+  hoursBtn.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter' || e.key === ' ') openHours();
+  });
+}
+
+if(hoursTopBtn){
+  hoursTopBtn.addEventListener('click', openHours);
+  hoursTopBtn.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter' || e.key === ' ') openHours();
+  });
+}
+
+if(hoursModal){
+  hClose.addEventListener('click', closeHours);
+  hoursModal.addEventListener('click', (e)=>{ if(e.target === hoursModal) closeHours(); });
+  hoursModal.addEventListener('mousemove', ()=> hLast = Date.now());
+  hoursModal.addEventListener('touchstart', ()=> hLast = Date.now(), {passive:true});
+}
+
+
+
+
+(function(){
+  const els = {
+    updated: document.getElementById('weatherUpdated'),
+    temp:    document.getElementById('weatherTemp'),
+    desc:    document.getElementById('weatherDesc'),
+    feels:   document.getElementById('weatherFeels'),
+    wind:    document.getElementById('weatherWind'),
+    minmax:  document.getElementById('weatherMinMax'),
+    pm10:    document.getElementById('pm10'),
+    pm25:    document.getElementById('pm25'),
+    pm10Badge: document.getElementById('pm10Badge'),
+    pm25Badge: document.getElementById('pm25Badge'),
+    aqInline: document.getElementById('aqInline'),
+  };
+  const widget = document.getElementById('weatherWidget');
+  if(!widget || !els.temp) return;
+
+  const FALLBACK = { name: '부산', latitude: 35.1796, longitude: 129.0756, timezone: 'Asia/Seoul' };
+  const GEO_URL  = 'https://geocoding-api.open-meteo.com/v1/search';
+  const API_URL  = 'https://api.open-meteo.com/v1/forecast';
+  const AQ_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
+
+  const UPDATE_MS = 10 * 60 * 1000; // 10분
+
+  const WMO = {
+    0:  ['☀️','맑음'],
+    1:  ['🌤️','대체로 맑음'],
+    2:  ['⛅','부분적으로 흐림'],
+    3:  ['☁️','흐림'],
+    45: ['🌫️','안개'],
+    48: ['🌫️','짙은 안개'],
+    51: ['🌦️','이슬비(약)'],
+    53: ['🌦️','이슬비(보통)'],
+    55: ['🌧️','이슬비(강)'],
+    56: ['🌧️','어는 이슬비(약)'],
+    57: ['🌧️','어는 이슬비(강)'],
+    61: ['🌧️','비(약)'],
+    63: ['🌧️','비(보통)'],
+    65: ['🌧️','비(강)'],
+    66: ['🌧️','어는 비(약)'],
+    67: ['🌧️','어는 비(강)'],
+    71: ['🌨️','눈(약)'],
+    73: ['🌨️','눈(보통)'],
+    75: ['❄️','눈(강)'],
+    77: ['❄️','싸락눈'],
+    80: ['🌦️','소나기(약)'],
+    81: ['🌧️','소나기(보통)'],
+    82: ['⛈️','소나기(강)'],
+    85: ['🌨️','눈 소나기(약)'],
+    86: ['❄️','눈 소나기(강)'],
+    95: ['⛈️','뇌우'],
+    96: ['⛈️','뇌우(우박)'],
+    99: ['⛈️','뇌우(강한 우박)'],
+  };
+
+  function safeNum(v){
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  function fmt2(n){
+    if(n === null) return '--';
+    return String(Math.round(n));
+  }
+  function fmtWind(n){
+    if(n === null) return '--';
+    return String(Math.round(n));
+  }
+  function formatUpdated(ts){
+
+    if(!ts) return '--';
+    const m = String(ts).match(/T(\d{2}:\d{2})/);
+    return m ? `${m[1]} 업데이트` : '업데이트';
+  }
+
+
+  function aqGrade(kind, v){
+    if(v == null || Number.isNaN(v)) return { label: '--', cls: 'is-unknown' };
+
+    if(kind === 'pm10'){
+      if(v <= 30)  return { label: '좋음', cls: 'is-good' };
+      if(v <= 80)  return { label: '보통', cls: 'is-normal' };
+      if(v <= 150) return { label: '나쁨', cls: 'is-bad' };
+      return        { label: '매우 나쁨', cls: 'is-very-bad' };
+    }
+
+    if(v <= 15)  return { label: '좋음', cls: 'is-good' };
+    if(v <= 35)  return { label: '보통', cls: 'is-normal' };
+    if(v <= 75)  return { label: '나쁨', cls: 'is-bad' };
+    return        { label: '매우 나쁨', cls: 'is-very-bad' };
+  }
+
+  function setPill(el, grade){
+    if(!el) return;
+    el.textContent = grade.label;
+    el.className = `aq-pill ${grade.cls}`;
+  }
+
+  function setMainPill(el, grade){
+    if(!el) return;
+    el.textContent = grade.label;
+    el.className = `aq-main-pill ${grade.cls}`;
+  }
+
+  async function geocodeBusan(){
+    try{
+      const url = `${GEO_URL}?name=${encodeURIComponent('부산')}&count=1&language=ko&format=json`;
+      const res = await fetch(url, { cache: 'no-store' });
+      if(!res.ok) throw new Error('geocoding ' + res.status);
+      const data = await res.json();
+      const r = data && data.results && data.results[0];
+      if(r && typeof r.latitude === 'number' && typeof r.longitude === 'number'){
+        return {
+          name: r.name || FALLBACK.name,
+          latitude: r.latitude,
+          longitude: r.longitude,
+          timezone: r.timezone || FALLBACK.timezone,
+        };
+      }
+    }catch(e){
+      console.warn('[Weather] geocoding failed:', e);
+    }
+    return FALLBACK;
+  }
+
+  async function fetchWeather(lat, lon, tz){
+    const params = new URLSearchParams({
+      latitude: String(lat),
+      longitude: String(lon),
+      current: 'temperature_2m,apparent_temperature,weather_code,wind_speed_10m',
+      daily: 'temperature_2m_max,temperature_2m_min',
+      forecast_days: '1',
+      timezone: tz || 'Asia/Seoul',
+    });
+    const url = `${API_URL}?${params.toString()}`;
+    const res = await fetch(url, { cache: 'no-store' });
+    if(!res.ok) throw new Error('forecast ' + res.status);
+    return await res.json();
+  }
+async function fetchAirQuality(lat, lon, tz){
+  const params = new URLSearchParams({
+    latitude: String(lat),
+    longitude: String(lon),
+    current: 'pm10,pm2_5',
+    timezone: tz || 'Asia/Seoul',
+  });
+  const url = `${AQ_URL}?${params.toString()}`;
+  const res = await fetch(url, { cache: 'no-store' });
+  if(!res.ok) throw new Error('air-quality ' + res.status);
+  return await res.json();
+}
+
+  let resolvedLoc = null;
+  async function update(){
+    try{
+      if(!resolvedLoc) resolvedLoc = await geocodeBusan();
+
+      const data = await fetchWeather(resolvedLoc.latitude, resolvedLoc.longitude, resolvedLoc.timezone);
+
+      const cur = data && data.current ? data.current : null;
+      const daily = data && data.daily ? data.daily : null;
+
+      const t = safeNum(cur?.temperature_2m);
+      const f = safeNum(cur?.apparent_temperature);
+      const w = safeNum(cur?.wind_speed_10m);
+      const code = safeNum(cur?.weather_code);
+
+      const iconText = WMO[code]?.[0] || '🌡️';
+      const descText = WMO[code]?.[1] || '날씨';
+
+      const tMin = safeNum(daily?.temperature_2m_min?.[0]);
+      const tMax = safeNum(daily?.temperature_2m_max?.[0]);
+
+      els.temp.textContent = fmt2(t);
+      els.feels.textContent = fmt2(f);
+      els.wind.textContent = fmtWind(w);
+      els.minmax.textContent = (tMin !== null && tMax !== null) ? `${Math.round(tMin)}° / ${Math.round(tMax)}°` : '--';
+      els.desc.textContent = `${iconText} ${descText}`;
+      els.updated.textContent = formatUpdated(cur?.time);
+
+    }catch(e){
+      console.warn('[Weather] update failed:', e);
+      els.desc.textContent = '날씨 정보를 불러오지 못했습니다';
+      els.updated.textContent = '--';
+    }
+
+
+try{
+  if(els.pm10 && els.pm25){
+    const aq = await fetchAirQuality(resolvedLoc.latitude, resolvedLoc.longitude, resolvedLoc.timezone);
+    const pm10 = safeNum(aq?.current?.pm10);
+    const pm25 = safeNum(aq?.current?.pm2_5);
+
+    els.pm10.textContent = (pm10 === null) ? '--' : String(Math.round(pm10));
+    els.pm25.textContent = (pm25 === null) ? '--' : String(Math.round(pm25));
+
+    const g10 = aqGrade('pm10', pm10);
+    const g25 = aqGrade('pm25', pm25);
+    if(els.aqInline){
+  els.aqInline.textContent = `대기질:${g25.label}`;
+  els.aqInline.className = `aq-inline ${g25.cls}`;
+}
+    setPill(els.pm10Badge, g10);
+    setPill(els.pm25Badge, g25);
+  }
+}catch(e){
+  console.warn('[AirQuality] update failed:', e);
+  if(els.pm10) els.pm10.textContent = '--';
+  if(els.pm25) els.pm25.textContent = '--';
+  setPill(els.pm10Badge, { label: '--', cls: 'is-unknown' });
+  setPill(els.pm25Badge, { label: '--', cls: 'is-unknown' });
+}
+  }
+
+  update();
+  setInterval(update, UPDATE_MS);
+})();
+
+
+setInterval(() => {
+  window.location.reload();
+}, 3 * 60 * 60 * 1000);
+  </script>
+</body>
+</html>

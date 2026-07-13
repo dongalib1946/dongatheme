@@ -1,0 +1,11 @@
+{
+  "name": "donga-library-kiosk",
+  "private": true,
+  "scripts": {
+    "check": "node --check assets/js/kiosk.js && node --check assets/js/admin.js && node --check netlify/functions/aladin-books.js && node --check netlify/functions/kiosk-control.js && node --check netlify/functions/library-hours.js && node --check scripts/generate-pages-data.js && node --check scripts/update-kiosk-control.js",
+    "generate:pages-data": "node scripts/generate-pages-data.js"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^8.2.0"
+  }
+}
