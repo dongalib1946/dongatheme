@@ -9,6 +9,16 @@ const DATA_DIR = path.join(ROOT, 'data');
 const DRIVE_FOLDER_ID = '1I0G9cfTIvnmXkxmFcpGpDHusr8ety-5-';
 const DEFAULT_GOOGLE_API_KEY = 'AIzaSyBi45EE-6g8e_5e18ikpKybDOddQ6NeBU8';
 
+function decodeHtml(value) {
+  return String(value || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)));
+}
+
 async function writeJson(relativePath, value) {
   const filePath = path.join(ROOT, relativePath);
   await fs.mkdir(path.dirname(filePath), { recursive: true });
@@ -39,6 +49,15 @@ async function writeErrorJson(relativePath, error) {
 }
 
 async function fetchDrivePosters() {
+  try {
+    return await fetchDrivePostersFromApi();
+  } catch (error) {
+    console.warn(`Google Drive API poster fetch failed; trying public folder HTML: ${error.message}`);
+    return await fetchDrivePostersFromEmbeddedFolder();
+  }
+}
+
+async function fetchDrivePostersFromApi() {
   const googleApiKey = process.env.GOOGLE_API_KEY || DEFAULT_GOOGLE_API_KEY;
   const url = new URL('https://www.googleapis.com/drive/v3/files');
   url.searchParams.set('q', `'${DRIVE_FOLDER_ID}' in parents and mimeType contains 'image/' and trashed = false`);
@@ -94,6 +113,47 @@ async function fetchDrivePosters() {
   return {
     items: files,
     source: 'Google Drive API',
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+async function fetchDrivePostersFromEmbeddedFolder() {
+  const url = `https://drive.google.com/embeddedfolderview?id=${encodeURIComponent(DRIVE_FOLDER_ID)}#grid`;
+  const res = await fetch(url, {
+    headers: {
+      accept: 'text/html,application/xhtml+xml',
+      'user-agent': 'Mozilla/5.0 GitHub Pages poster generator',
+    },
+  });
+  const html = await res.text();
+  if (!res.ok) throw new Error(`Google Drive folder HTML failed: ${res.status}`);
+
+  const entries = [];
+  const entryPattern = /<div class="flip-entry" id="entry-([^"]+)"[\s\S]*?<img src="([^"]+)" alt="[^"]*"\/>[\s\S]*?<div class="flip-entry-title">([\s\S]*?)<\/div>/g;
+  let match;
+  while ((match = entryPattern.exec(html))) {
+    const id = match[1];
+    const thumbUrl = decodeHtml(match[2]).replace(/=s\d+$/, '=s2000');
+    const name = decodeHtml(match[3]).replace(/<[^>]*>/g, '').trim() || 'poster';
+    const downloadUrl = `https://drive.google.com/uc?export=download&id=${id}`;
+    const candidates = [thumbUrl, downloadUrl];
+
+    entries.push({
+      id,
+      name,
+      mimeType: '',
+      modifiedTime: '',
+      candidates,
+      url: candidates[0],
+      tried: 0,
+    });
+  }
+
+  if (!entries.length) throw new Error('No poster entries found in Google Drive folder HTML.');
+
+  return {
+    items: entries,
+    source: 'Google Drive public folder HTML',
     updatedAt: new Date().toISOString(),
   };
 }
